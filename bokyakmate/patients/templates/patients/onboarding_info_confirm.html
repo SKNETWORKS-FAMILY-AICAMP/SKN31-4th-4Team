@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>본인 확인 · 복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone">
+    <div class="subpage-header">
+        <h1>본인 확인</h1>
+    </div>
+
+    <div class="onb-body">
+        <p class="onb-sub" style="margin-top:6px;">조회된 정보를 확인해주세요.</p>
+
+        <div class="onb-info-card">
+            <div class="onb-info-row"><span class="k">이름</span><span class="v">{{ patient.name }}</span></div>
+            <div class="onb-info-row"><span class="k">생년월일</span><span class="v">{{ patient.birth_date }}</span></div>
+            <div class="onb-info-row"><span class="k">성별</span><span class="v">{{ patient.get_gender_display }}</span></div>
+            <div class="onb-info-row"><span class="k">병원</span><span class="v">{{ selected_hospital.hospital_name }}</span></div>
+            <div class="onb-info-row"><span class="k">최근 진료·처방</span><span class="v">{{ latest_visit_date|default:"-" }}</span></div>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="onb-btn-primary">확인</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

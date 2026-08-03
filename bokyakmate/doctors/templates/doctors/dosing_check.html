@@ -1,0 +1,39 @@
+{% extends "doctors/base.html" %}
+{% block title %}복약 체크{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>복약 체크 — {{ detail.drug.drug_name }}</h1>
+    <a href="{% url 'doctors:prescription_detail' doctor.member_id detail.prescription.prescription_id %}" class="back-link">← 처방 상세로</a>
+</div>
+
+<div class="card">
+    <h3>복약 상태 기록</h3>
+    <form method="post">
+        {% csrf_token %}
+        <div class="severity-options">
+            <label><input type="radio" name="status" value="done" checked><span>✅ 복용함</span></label>
+            <label><input type="radio" name="status" value="missed"><span>❌ 놓침</span></label>
+            <label><input type="radio" name="status" value="skipped"><span>⏭️ 건너뜀</span></label>
+        </div>
+        <button type="submit" class="btn" style="margin-top:14px;">저장</button>
+    </form>
+</div>
+
+<h3>복약 이력</h3>
+<table class="data-table">
+    <thead><tr><th>예정시각</th><th>실제복용</th><th>상태</th></tr></thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.scheduled_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ log.taken_at|date:"Y-m-d H:i"|default:"-" }}</td>
+            <td><span class="badge {{ log.status }}">{{ log.get_status_display }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="empty-state">기록이 없어요.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>사용자 인증 · 복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone">
+    <div class="subpage-header">
+        <a href="{% url 'patients:onboarding_hospital_select' %}">←</a>
+        <h1>{{ selected_hospital.hospital_name|default:"병원" }} 사용자 인증</h1>
+    </div>
+
+    <div class="onb-body">
+        <div class="onb-progress">
+            <div class="onb-progress-dot done"></div>
+            <div class="onb-progress-dot done"></div>
+            <div class="onb-progress-dot"></div>
+            <div class="onb-progress-dot"></div>
+        </div>
+
+        <p class="onb-label">본인 확인을 진행할게요</p>
+        <p class="onb-sub">병원에서 안내받은 환자 고유코드로 인증해주세요.</p>
+
+        {% if error %}
+        <div class="login-error" style="margin-bottom:14px;">{{ error }}</div>
+        {% endif %}
+
+        {# 문자 인증(OTP) 없이, 병원이 이미 발급해둔 환자 고유코드(patient_id)를
+           그대로 인증 수단으로 쓴다. 전화번호+고유코드 조합이 실제 Patient
+           레코드와 일치하는지만 확인하면 되므로 별도 인증코드 테이블이 필요 없다. #}
+        <form method="post">
+            {% csrf_token %}
+            <p class="onb-field-label">전화번호</p>
+            <input type="tel" name="phone" class="onb-input" placeholder="010-0000-0000" required>
+
+            <p class="onb-field-label">환자 고유코드</p>
+            <input type="text" name="patient_code" class="onb-input" placeholder="병원에서 안내받은 환자 고유코드" required>
+            <p class="onb-hint">환자 고유코드는 병원 접수처에서 확인할 수 있어요.</p>
+
+            <button type="submit" class="onb-btn-primary">완료</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>건강 정보 입력 · 복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone">
+    <div class="subpage-header">
+        <h1>건강 정보 입력</h1>
+    </div>
+
+    <div class="onb-body">
+        <p class="onb-sub" style="margin-top:6px;">추가적인 건강 상태를 알려주세요 (선택).</p>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <p class="onb-field-label">기저질환 (복수 선택 가능)</p>
+            <div style="margin-bottom:18px;">
+                {# 명세서 고정 항목. 실제로는 ConditionMaster 등 DB 목록으로 대체 가능 #}
+                <label class="tag-check"><input type="checkbox" name="conditions" value="고혈압">고혈압</label>
+                <label class="tag-check"><input type="checkbox" name="conditions" value="당뇨">당뇨</label>
+                <label class="tag-check"><input type="checkbox" name="conditions" value="간질환">간질환</label>
+                <label class="tag-check"><input type="checkbox" name="conditions" value="신장질환">신장질환</label>
+                <label class="tag-check"><input type="checkbox" name="conditions" value="심혈관질환">심혈관질환</label>
+                <label class="tag-check"><input type="checkbox" name="conditions" value="기타" id="cond-etc">기타</label>
+            </div>
+            <input type="text" name="condition_etc" class="onb-input" placeholder="기타 기저질환을 입력해주세요" style="display:none;" id="cond-etc-input">
+
+            {% if patient.gender == "F" %}
+            <div class="onb-toggle-row">
+                <span class="label">임신 여부</span>
+                <label class="onb-switch">
+                    <input type="checkbox" name="is_pregnant">
+                    <span class="track"></span>
+                </label>
+            </div>
+            {% endif %}
+
+            <button type="submit" class="onb-btn-primary">완료</button>
+        </form>
+    </div>
+</div>
+
+<script>
+// 기타 선택 시에만 직접입력 인풋 노출 (UI 동작만, 저장 로직은 백엔드에서 처리)
+document.getElementById('cond-etc').addEventListener('change', function () {
+    document.getElementById('cond-etc-input').style.display = this.checked ? 'block' : 'none';
+});
+</script>
+
+</body>
+</html>

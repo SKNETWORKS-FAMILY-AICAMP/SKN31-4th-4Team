@@ -1,0 +1,117 @@
+{% load static %}
+{% load patient_tags %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone" style="position: relative;">
+    <div class="header">
+        <div class="greeting-row">
+            <div class="avatar">🐣</div>
+            <div>
+                <p class="greeting-name">{{ patient.name }}님, 안녕하세요</p>
+                <p class="greeting-sub">{{ condition_message|default:"오늘 컨디션은 어떠세요?" }}</p>
+            </div>
+        </div>
+        <div class="chip-row">
+            {% if current_drug %}
+                <span class="chip">💊 {{ current_drug.drug_name }}</span>
+            {% else %}
+                <span class="chip">💊 복용 중인 약 없음</span>
+            {% endif %}
+            <span class="chip">🎂 {{ patient.age }}세 · {{ patient.get_gender_display }}</span>
+        </div>
+    </div>
+
+    <div class="body">
+
+        {# ===== 오늘의 복약 위젯 ===== #}
+        {# today_doses: [{id, drug_name, scheduled_time, checked, missed}, ...] #}
+        <div class="dose-widget">
+            {% if all_doses_done %}
+                <div class="dose-widget-complete">
+                    <div class="check-icon">✅</div>
+                    <p class="msg">오늘의 복약을 모두 완료했어요!</p>
+                    <a href="{{ calendar_url }}" class="view-all-btn">전체 보기</a>
+                </div>
+            {% else %}
+                <div class="dose-widget-header">
+                    <span class="dose-widget-title">오늘의 복약체크</span>
+                    <span class="dose-widget-time">아침 · 오전 8시</span>
+                </div>
+                {% for dose in today_doses %}
+                <div class="dose-widget-item">
+                    <form method="post" action="{% url 'patients:mark_dose_taken' patient.patient_id dose.id %}?next=main" style="display:contents;">
+                        {% csrf_token %}
+                        <button type="submit" class="dose-check-btn {% if dose.checked %}checked{% endif %}"
+                                {% if dose.checked %}disabled{% endif %}>{% if dose.checked %}✓{% endif %}</button>
+                    </form>
+                    <span class="name">{{ dose.drug_name }}</span>
+                    {% if dose.missed %}<span class="badge-missed">미복용</span>{% endif %}
+                </div>
+                {% empty %}
+                <div class="empty-state">오늘 예정된 복약이 없어요.</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <p class="section-title">바로가기</p>
+        <div class="quick-grid">
+            {% for card in quick_cards %}
+            <a href="{{ card.url }}" class="quick-card qc-{{ card.color }}">
+                <div class="icon">{{ card.icon }}</div>
+                <div class="label">{{ card.label }}</div>
+                <div class="desc">{{ card.desc }}</div>
+            </a>
+            {% endfor %}
+        </div>
+
+        <p class="section-title">최근 상담 요약</p>
+        <div class="history-card">
+            {% for chat in recent_chats %}
+            <div class="history-item">
+                <span class="q">{{ chat.question_summary }}</span>
+                <span class="d">{{ chat.started_at|date:"n/j" }}</span>
+            </div>
+            {% empty %}
+            <div class="empty-state">아직 상담 기록이 없어요. 아래 버튼으로 시작해보세요.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="chat-fab-wrap">
+        <button class="chat-fab" onclick="location.href='{{ chatbot_url }}'">💬</button>
+        <div class="chat-fab-label">복약메이트에게 물어보기</div>
+    </div>
+
+    {% bottom_nav "home" %}
+
+    {# ===== 복용 완료 확인 바텀시트 — show_bottom_sheet=True 일 때만 (복약체크 직후) ===== #}
+    {% if show_bottom_sheet %}
+    <div class="bottom-sheet-overlay">
+        <div class="bottom-sheet">
+            <div class="bottom-sheet-handle"></div>
+            <div class="bottom-sheet-check">✅</div>
+            <p class="bottom-sheet-title">복용 완료!</p>
+            <div class="bottom-sheet-time-row">
+                <input type="time" value="{{ checked_time|default:"08:00" }}">
+                <button type="button">시간 수정</button>
+            </div>
+            <button type="button" class="onb-btn-primary" style="margin-top:0;">확인</button>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ===== 토스트 — show_toast=True 일 때만 (체크 직후 짧게 노출) ===== #}
+    {% if show_toast %}
+    <div class="toast">복용 기록이 저장되었습니다</div>
+    {% endif %}
+</div>
+
+</body>
+</html>

@@ -1,0 +1,46 @@
+{% extends "doctors/base.html" %}
+{% block title %}약 정보 조회{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>약 정보 조회</h1>
+</div>
+
+<form class="search-row" method="get">
+    <input type="text" name="q" placeholder="약 이름으로 검색" value="{{ query }}">
+    <button type="submit" class="btn secondary">검색</button>
+</form>
+
+{% if drug %}
+<div class="card">
+    <h3>{{ drug.drug_name }}</h3>
+    <div class="info-grid">
+        <div><span class="label">주성분코드</span> {{ drug.ingredient_code }}</div>
+        <div><span class="label">제약사</span> {{ drug.manufacturer|default:"-" }}</div>
+        <div><span class="label">약효분류</span> {{ drug.drug_class|default:"-" }}</div>
+    </div>
+    <h3 style="margin-top:14px;">관련 질환</h3>
+    {% for disease in drug.treats_diseases.all %}
+        <span class="badge low">{{ disease.name }}</span>
+    {% empty %}
+        <span class="empty-state">등록된 관련 질환이 없어요.</span>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if query %}
+<table class="data-table">
+    <thead><tr><th>제품명</th><th>제약사</th></tr></thead>
+    <tbody>
+        {% for r in results %}
+        <tr class="clickable" onclick="location.href='{% url "doctors:drug_info" doctor.member_id r.product_code %}'">
+            <td>{{ r.drug_name }}</td><td>{{ r.manufacturer }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="2" class="empty-state">검색 결과가 없어요.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% endblock %}

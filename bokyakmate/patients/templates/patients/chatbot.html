@@ -1,0 +1,100 @@
+{% load patient_tags %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>AI 상담 · 복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone">
+    <div class="subpage-header">
+        <a href="{{ main_url }}">←</a>
+        <h1>복약메이트와 상담하기</h1>
+    </div>
+
+    <div class="chat-screen">
+        <div class="chat-body">
+
+            {% if not messages %}
+            {# ===== 최초진입 상태 ===== #}
+            <div class="chat-intro">
+                <div class="chat-intro-icon">💊</div>
+                <p class="chat-intro-title">복약메이트</p>
+                <p class="chat-intro-desc">오늘의 복약과 건강 상태를 함께 관리해드릴게요.</p>
+
+                <div class="chat-start-card">무엇을 도와드릴까요?</div>
+
+                <div class="suggested-q">
+                    <button type="button" class="suggested-q-card" onclick="document.querySelector('.chat-input-bar input').value=this.textContent; document.querySelector('.chat-input-bar').submit();">
+                        약 부작용이 있어요
+                    </button>
+                    <button type="button" class="suggested-q-card" onclick="document.querySelector('.chat-input-bar input').value=this.textContent; document.querySelector('.chat-input-bar').submit();">
+                        약에 대해 궁금한 게 있어요
+                    </button>
+                    <button type="button" class="suggested-q-card" onclick="document.querySelector('.chat-input-bar input').value=this.textContent; document.querySelector('.chat-input-bar').submit();">
+                        약의 효능에 대해 궁금해요
+                    </button>
+                </div>
+            </div>
+            {% else %}
+            {# ===== 대화 진행 상태 ===== #}
+            <div class="msg-row assistant">
+                <div class="msg-avatar">🩺</div>
+                <div class="msg-bubble">
+                    안녕하세요, {{ patient.name|default:"환자" }}님. 복용 중인 약이나 증상에 대해
+                    편하게 물어보세요.
+                </div>
+            </div>
+
+            {# 대화 이력 반복 — messages: [{role: "patient"/"assistant", content, citations(optional)}] #}
+            {% for msg in messages %}
+                <div class="msg-row {{ msg.role }}">
+                    {% if msg.role == "assistant" %}<div class="msg-avatar">🩺</div>{% endif %}
+                    <div class="msg-bubble">{{ msg.content }}</div>
+                    {% if msg.role == "patient" %}<div class="msg-avatar">🧑</div>{% endif %}
+                </div>
+
+                {% if msg.role == "assistant" and msg.citations %}
+                <details class="evidence-toggle">
+                    <summary>이 답변의 근거 보기</summary>
+                    {% for c in msg.citations %}
+                    <div class="evidence-box">
+                        <div class="evidence-source">{{ c.source_label }}</div>
+                        {{ c.snippet }}
+                    </div>
+                    {% endfor %}
+                </details>
+                {% endif %}
+
+                {% if msg.urgency == "high" %}
+                <div class="emergency-banner">
+                    ⚠️ 응급 신호가 감지되었습니다. 즉시 담당 의료진 또는 응급실(119)에 연락하세요.
+                </div>
+                {% endif %}
+            {% endfor %}
+
+            <!-- {# 답변 준비 중 표시 예시 (실제로는 응답 오는 동안에만 노출) #} -->
+            {% if is_thinking %}
+            <div class="msg-row assistant">
+                <div class="msg-avatar">🩺</div>
+                <div class="typing-bubble"><span></span><span></span><span></span></div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+        </div>
+
+        <form class="chat-input-bar" method="post">
+            {% csrf_token %}
+            <input type="text" name="user_input" placeholder="예) 약 먹고 두통이 있어요" autocomplete="off">
+            <button type="submit" class="chat-send-btn">↑</button>
+        </form>
+    </div>
+    {% bottom_nav "chat" %}
+</div>
+
+</body>
+</html>

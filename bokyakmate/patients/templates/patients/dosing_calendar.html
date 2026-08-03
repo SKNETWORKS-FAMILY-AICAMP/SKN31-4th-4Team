@@ -1,0 +1,66 @@
+{% load static %}
+{% load patient_tags %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>복약 캘린더 · 복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone">
+    <div class="subpage-header">
+        <a href="{{ main_url }}">←</a>
+        <h1>복약 캘린더</h1>
+    </div>
+
+    <div class="subpage-body">
+        <div class="cal-nav">
+            <a href="{{ prev_url }}">‹</a>
+            <span class="cal-title">{{ year }}년 {{ month }}월</span>
+            <a href="{{ next_url }}">›</a>
+        </div>
+
+        <div class="cal-grid">
+            <div class="cal-dow">일</div><div class="cal-dow">월</div><div class="cal-dow">화</div>
+            <div class="cal-dow">수</div><div class="cal-dow">목</div><div class="cal-dow">금</div><div class="cal-dow">토</div>
+
+            {% for week in weeks %}
+                {% for cell in week %}
+                    {% if cell %}
+                        <div class="cal-cell {% if cell.is_today %}today{% endif %} status-{{ cell.status }}">{{ cell.day }}</div>
+                    {% else %}
+                        <div class="cal-cell"></div>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <div class="today-list">
+            <p class="section-title">오늘의 복약</p>
+            {% for log in todays_logs %}
+            <div class="dose-item">
+                <div>
+                    <div class="name">{{ log.prescription_detail.drug.drug_name }}</div>
+                    <div class="time">{{ log.scheduled_at|date:"H:i" }} 예정</div>
+                </div>
+                {% if log.status == "done" %}
+                    <span class="dose-btn done">✓ 복용완료</span>
+                {% else %}
+                    <form method="post" action="{% url 'patients:mark_dose_taken' patient.patient_id log.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="dose-btn todo">복용했어요</button>
+                    </form>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="empty-state">오늘 예정된 복약이 없어요.</div>
+            {% endfor %}
+        </div>
+        {% bottom_nav "calendar" %}
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,131 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>복약메이트 · 로그인</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+<style>
+.login-phone { justify-content: flex-start; padding-top: 56px; align-items: center; }
+
+.brand-mark { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px; }
+.brand-wordmark { font-family: 'Gmarket Sans', sans-serif; font-size: 25px; color: var(--sky-deep); letter-spacing: -0.3px; }
+.login-sub { text-align: center; color: var(--ink-soft); font-size: 12.5px; margin: 0 0 30px; }
+
+.role-tabs {
+    position: relative; display: flex; background: white; border-radius: 16px; padding: 5px;
+    margin: 0 24px 26px; box-shadow: 0 2px 10px rgba(58,75,92,0.08);
+}
+.role-tab-indicator {
+    position: absolute; top: 5px; left: 5px; width: calc(50% - 5px); height: calc(100% - 10px);
+    background: linear-gradient(160deg, var(--sky) 0%, var(--sky-deep) 100%);
+    border-radius: 12px; transition: transform 0.25s cubic-bezier(.4,0,.2,1);
+}
+.role-tab {
+    position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 3px; padding: 11px; border-radius: 12px; border: none; background: none; cursor: pointer;
+    color: var(--ink-soft); transition: color 0.2s ease;
+}
+.role-tab .role-tab-icon { font-size: 19px; }
+.role-tab .role-tab-label { font-size: 12.5px; font-weight: 700; }
+.role-tab.active { color: white; }
+
+.login-form { padding: 0 24px; width: 100%; }
+.login-form input {
+    width: 100%; padding: 13px 16px; border-radius: 14px; border: 1px solid #DCE8EF;
+    margin-bottom: 12px; font-size: 14px; font-family: 'Pretendard', sans-serif; background: white;
+}
+.login-form input:focus { outline: none; border-color: var(--sky); }
+.login-submit {
+    width: 100%; padding: 14px 0; border-radius: 14px; border: none;
+    background: linear-gradient(160deg, var(--peach) 0%, #FF8A63 100%);
+    color: white; font-weight: 700; font-size: 14.5px; cursor: pointer; margin-top: 6px;
+}
+.login-error {
+    background: #FFECEC; color: #A63B3B; border-radius: 12px; padding: 10px 14px;
+    font-size: 12.5px; margin-bottom: 12px; text-align: center;
+}
+
+/* 환자 탭: 아이디/비번 없이 바로 온보딩(전화번호+인증번호) 진입 안내 */
+.patient-entry { padding: 0 24px; width: 100%; }
+.patient-entry-desc {
+    text-align: center; font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; margin: 0 0 18px;
+}
+.patient-entry-btn {
+    display: block; width: 100%; padding: 14px 0; border-radius: 14px; border: none;
+    background: linear-gradient(160deg, var(--sky) 0%, var(--sky-deep) 100%);
+    color: white; font-weight: 700; font-size: 14.5px; text-align: center; text-decoration: none;
+}
+</style>
+</head>
+<body>
+
+<div class="phone login-phone">
+
+    <div class="brand-mark">
+        <svg width="34" height="34" viewBox="0 0 34 34">
+            <g transform="translate(2,2) rotate(-35 15 15)">
+                <path d="M15,4 L9,4 A10,10 0 0,0 9,24 L15,24 Z" fill="#6EC6E8"/>
+                <path d="M15,4 L21,4 A10,10 0 0,1 21,24 L15,24 Z" fill="#FF9F80"/>
+            </g>
+        </svg>
+        <span class="brand-wordmark">복약메이트</span>
+    </div>
+    <p class="login-sub">정신과 복약 관리를 함께하는 친구</p>
+
+    <div class="role-tabs">
+        <div class="role-tab-indicator" id="tab-indicator"></div>
+        <button type="button" class="role-tab" id="tab-patient">
+            <span class="role-tab-icon">🧑</span><span class="role-tab-label">환자</span>
+        </button>
+        <button type="button" class="role-tab" id="tab-doctor">
+            <span class="role-tab-icon">🩺</span><span class="role-tab-label">병원</span>
+        </button>
+    </div>
+
+    {% if error %}
+    <div class="login-form"><div class="login-error">{{ error }}</div></div>
+    {% endif %}
+
+    <!-- {# 환자 탭: 아이디/비번 없음. 온보딩(병원선택→전화번호+인증번호)이 곧 로그인 역할.
+       이미 가입된 환자인지(건강정보 입력 단계를 건너뛸지) 판단은 온보딩의
+       '병원 인증' 단계에서 전화번호로 조회해 백엔드가 분기해야 한다. #} -->
+    <div class="patient-entry" id="patient-entry">
+        <p class="patient-entry-desc">
+            병원에서 안내받은 인증번호로 시작할 수 있어요.<br>
+            처음이시라면 병원 선택부터 진행해주세요.
+        </p>
+        <a href="{% url 'patients:onboarding_hospital_select' %}" class="patient-entry-btn">인증하고 시작하기</a>
+    </div>
+
+    {# 병원 회원 탭: 기존 아이디/비번 로그인 그대로 유지 #}
+    <form class="login-form" method="post" action="{% url 'accounts:login' %}" id="doctor-form" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="role" value="doctor">
+        <input type="text" name="username" placeholder="아이디" required>
+        <input type="password" name="password" placeholder="비밀번호" required>
+        <button type="submit" class="login-submit">병원 회원으로 로그인</button>
+    </form>
+</div>
+
+<script>
+const tabPatient = document.getElementById('tab-patient');
+const tabDoctor = document.getElementById('tab-doctor');
+const indicator = document.getElementById('tab-indicator');
+const patientEntry = document.getElementById('patient-entry');
+const doctorForm = document.getElementById('doctor-form');
+
+function setRole(role) {
+    tabPatient.classList.toggle('active', role === 'patient');
+    tabDoctor.classList.toggle('active', role === 'doctor');
+    indicator.style.transform = role === 'doctor' ? 'translateX(100%)' : 'translateX(0)';
+    patientEntry.style.display = role === 'patient' ? 'block' : 'none';
+    doctorForm.style.display = role === 'doctor' ? 'block' : 'none';
+}
+tabPatient.addEventListener('click', () => setRole('patient'));
+tabDoctor.addEventListener('click', () => setRole('doctor'));
+setRole('{{ role|default:"patient" }}');
+</script>
+
+</body>
+</html>

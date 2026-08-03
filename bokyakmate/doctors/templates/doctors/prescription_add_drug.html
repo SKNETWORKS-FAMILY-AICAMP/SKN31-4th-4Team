@@ -1,0 +1,27 @@
+{% extends "doctors/base.html" %}
+{% block title %}약 추가{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>처방약 추가</h1>
+    <a href="{% url 'doctors:prescription_detail' doctor.member_id prescription.prescription_id %}" class="back-link">← 처방 상세로</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>약물 선택</label>
+            <select name="drug" required>
+                {% for drug in drugs %}
+                <option value="{{ drug.product_code }}">{{ drug.drug_name }} ({{ drug.manufacturer }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>용법용량</label><input type="text" name="dosage_instruction" placeholder="예: 1일 2회 1정" required></div>
+        <div class="form-group"><label>복용 시작일</label><input type="date" name="start_date" required></div>
+        <button type="submit" class="btn">추가하기</button>
+    </form>
+</div>
+
+{% endblock %}

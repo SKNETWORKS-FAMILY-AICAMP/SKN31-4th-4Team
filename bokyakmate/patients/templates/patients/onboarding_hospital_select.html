@@ -1,0 +1,59 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>병원 선택 · 복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone" style="position: relative;">
+    <div class="subpage-header">
+        <a href="{% url 'patients:onboarding_start' %}">←</a>
+        <h1>병원 선택</h1>
+    </div>
+
+    <div class="onb-body">
+        <div class="onb-progress">
+            <div class="onb-progress-dot done"></div>
+            <div class="onb-progress-dot"></div>
+            <div class="onb-progress-dot"></div>
+            <div class="onb-progress-dot"></div>
+        </div>
+
+        <p class="onb-label">병원을 선택하세요</p>
+        <p class="onb-sub">복약메이트와 연동할 병원을 선택하면,<br>처방 기록을 자동으로 불러올 수 있어요.</p>
+
+        <form method="post" id="hospital-form">
+            {% csrf_token %}
+            {# hospitals: 병원 목록 (병원DB 조회 결과) #}
+            <select name="hospital_code" class="onb-select" required>
+                <option value="" disabled selected>병원명을 검색하거나 선택하세요</option>
+                {% for h in hospitals %}
+                <option value="{{ h.hospital_code }}">{{ h.hospital_name }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" class="onb-btn-primary">사용자 인증하기</button>
+        </form>
+    </div>
+
+    {# 병원 확인 팝업 - show_confirm=True 일 때만 노출 (선택 직후) #}
+    {% if show_confirm %}
+    <div class="onb-overlay">
+        <div class="onb-modal">
+            <div class="onb-hero-icon">🏥</div>
+            <p class="onb-modal-title">{{ selected_hospital.hospital_name }}</p>
+            <p class="onb-modal-desc">해당 병원이 맞을까요?</p>
+            <div class="onb-modal-row">
+                <button type="button" class="cancel" onclick="history.back()">다시 선택</button>
+                <button type="submit" form="hospital-form" class="confirm">확인</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>

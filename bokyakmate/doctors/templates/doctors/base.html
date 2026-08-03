@@ -1,0 +1,29 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>{% block title %}복약메이트 · 병원{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'doctors/css/main.css' %}">
+</head>
+<body>
+
+<div class="topbar">
+    <span class="brand">💊 복약메이트 · 병원 회원</span>
+    <div>
+        <span class="doc-info">{{ doctor.name }} 선생님 · {{ doctor.hospital.hospital_name }}</span>
+        <a href="{% url 'accounts:logout' %}" class="logout">로그아웃</a>
+    </div>
+</div>
+
+<div class="page">
+    {% if messages %}
+        {% for message in messages %}
+        <div class="error-msg">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

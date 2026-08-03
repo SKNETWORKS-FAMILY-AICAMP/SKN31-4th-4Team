@@ -1,0 +1,42 @@
+{% extends "doctors/base.html" %}
+{% block title %}처방 상세{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>처방 상세</h1>
+    <a href="{% url 'doctors:patient_detail' doctor.member_id prescription.patient.patient_id %}" class="back-link">← 환자 상세로</a>
+</div>
+
+<div class="card">
+    <h3>처방 정보</h3>
+    <div class="info-grid">
+        <div><span class="label">환자</span> {{ prescription.patient.name }}</div>
+        <div><span class="label">처방일</span> {{ prescription.prescribed_at }}</div>
+        <div><span class="label">진단명</span> {{ prescription.diagnosis|default:"-" }}</div>
+        <div><span class="label">병원</span> {{ prescription.hospital.hospital_name }}</div>
+    </div>
+</div>
+
+<div class="page-header">
+    <h3 style="margin:0;">처방약 목록</h3>
+    <a href="{% url 'doctors:prescription_add_drug' doctor.member_id prescription.prescription_id %}" class="btn">+ 약 추가</a>
+</div>
+
+{% for d in details %}
+<div class="card">
+    <h3>{{ d.drug.drug_name }}</h3>
+    <div class="info-grid">
+        <div><span class="label">용법용량</span> {{ d.dosage_instruction }}</div>
+        <div><span class="label">복용시작일</span> {{ d.start_date }}</div>
+    </div>
+    <div class="drug-link-row">
+        <a href="{% url 'doctors:dosing_check' doctor.member_id d.id %}">📅 복약 체크</a>
+        <a href="{% url 'doctors:side_effect_record' doctor.member_id d.id %}">⚠️ 부작용 기록</a>
+        <a href="{% url 'doctors:drug_info' doctor.member_id d.drug.product_code %}">💊 약 정보</a>
+    </div>
+</div>
+{% empty %}
+<div class="empty-state">아직 등록된 처방약이 없어요.</div>
+{% endfor %}
+
+{% endblock %}

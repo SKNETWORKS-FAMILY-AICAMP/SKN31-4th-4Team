@@ -1,0 +1,40 @@
+{% extends "doctors/base.html" %}
+{% block title %}{{ patient.name }} · 환자 상세{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>{{ patient.name }} 환자</h1>
+    <a href="{% url 'doctors:patient_list' doctor.member_id %}" class="back-link">← 목록으로</a>
+</div>
+
+<div class="card">
+    <h3>기본 정보</h3>
+    <div class="info-grid">
+        <div><span class="label">성별</span> {{ patient.get_gender_display }}</div>
+        <div><span class="label">나이</span> {{ patient.age }}세</div>
+        <div><span class="label">체중</span> {{ patient.weight_kg|default:"-" }}kg</div>
+        <div><span class="label">임신여부</span> {% if patient.is_pregnant %}예{% else %}아니오{% endif %}</div>
+    </div>
+</div>
+
+<div class="page-header">
+    <h3 style="margin:0;">처방 이력</h3>
+    <a href="{% url 'doctors:prescription_create' doctor.member_id patient.patient_id %}" class="btn">+ 새 처방 등록</a>
+</div>
+
+<table class="data-table">
+    <thead><tr><th>처방일</th><th>진단명</th><th>처방약 수</th></tr></thead>
+    <tbody>
+        {% for p in prescriptions %}
+        <tr class="clickable" onclick="location.href='{% url "doctors:prescription_detail" doctor.member_id p.prescription_id %}'">
+            <td>{{ p.prescribed_at }}</td>
+            <td>{{ p.diagnosis|default:"-" }}</td>
+            <td>{{ p.details.count }}개</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="empty-state">처방 이력이 없어요.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

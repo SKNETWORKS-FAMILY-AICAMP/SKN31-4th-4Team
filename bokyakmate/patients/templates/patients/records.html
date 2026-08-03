@@ -1,0 +1,51 @@
+{% load static %}
+{% load patient_tags %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>기록 · 복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone">
+    <div class="subpage-header">
+        <a href="{{ main_url }}">←</a>
+        <h1>내 기록</h1>
+    </div>
+
+    <div class="subpage-body">
+        <div class="tab-bar">
+            <a href="?tab=prescriptions" class="{% if active_tab == 'prescriptions' %}active{% endif %}">처방받은 약</a>
+            <a href="?tab=visits" class="{% if active_tab == 'visits' %}active{% endif %}">병원 방문</a>
+        </div>
+
+        {% if active_tab == "prescriptions" %}
+            {% for p in prescriptions %}
+            <div class="record-card">
+                <div class="title">{{ p.diagnosis|default:"처방 기록" }}</div>
+                <div class="meta">{{ p.prescribed_at }} · {{ p.doctor.name }} · {{ p.hospital.hospital_name }}</div>
+                {% for d in p.details.all %}
+                <div class="drug-line">💊 {{ d.drug.drug_name }} — {{ d.dosage_instruction }}</div>
+                {% endfor %}
+            </div>
+            {% empty %}
+            <div class="empty-state">처방 기록이 없어요.</div>
+            {% endfor %}
+        {% else %}
+            {% for v in visits %}
+            <div class="record-card">
+                <div class="title">{{ v.hospital.hospital_name }}</div>
+                <div class="meta">{{ v.visit_date }} · {{ v.doctor.name }}{% if v.reason %} · {{ v.reason }}{% endif %}</div>
+            </div>
+            {% empty %}
+            <div class="empty-state">병원 방문 기록이 없어요.</div>
+            {% endfor %}
+        {% endif %}
+        {% bottom_nav "records" %}
+    </div>
+</div>
+
+</body>
+</html>

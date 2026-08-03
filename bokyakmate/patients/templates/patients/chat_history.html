@@ -1,0 +1,32 @@
+{% load static %}
+{% load patient_tags %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>상담 히스토리 · 복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone">
+    <div class="subpage-header">
+        <a href="{{ main_url }}">←</a>
+        <h1>상담 히스토리</h1>
+    </div>
+
+    <div class="subpage-body">
+        {% for chat in chats %}
+        <div class="record-card">
+            <div class="title">{{ chat.question_summary }}</div>
+            <div class="meta">{{ chat.started_at|date:"Y.m.d H:i" }}{% if chat.intent %} · {{ chat.intent }}{% endif %}</div>
+        </div>
+        {% empty %}
+        <div class="empty-state">아직 상담 기록이 없어요.</div>
+        {% endfor %}
+        {% bottom_nav "records" %}
+    </div>
+</div>
+
+</body>
+</html>

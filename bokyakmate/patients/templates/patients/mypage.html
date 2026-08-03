@@ -1,0 +1,74 @@
+{% load static %}
+{% load patient_tags %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>마이페이지 · 복약메이트</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone">
+    <div class="subpage-header">
+        <a href="{{ main_url }}">←</a>
+        <h1>마이페이지</h1>
+    </div>
+
+    <div class="subpage-body">
+        <div class="mypage-section">
+            <h3>기본 정보</h3>
+            <div class="record-card">
+                <div class="title">{{ patient.name }}</div>
+                <div class="meta">{{ patient.get_gender_display }} · {{ patient.age }}세 · {{ patient.weight_kg|default:"-" }}kg</div>
+            </div>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+
+            {% if patient.gender == "F" %}
+            <div class="mypage-section">
+                <h3>임신 여부</h3>
+                <label class="pregnant-row">
+                    <input type="checkbox" name="is_pregnant" {% if patient.is_pregnant %}checked{% endif %}>
+                    현재 임신 중이에요
+                </label>
+            </div>
+            {% endif %}
+
+            <div class="mypage-section">
+                <h3>기저질환</h3>
+                {% for c in all_conditions %}
+                <label class="tag-check">
+                    <input type="checkbox" name="conditions" value="{{ c.code }}" {% if c.code in my_condition_codes %}checked{% endif %}>
+                    {{ c.name }}
+                </label>
+                {% endfor %}
+            </div>
+
+            <div class="mypage-section">
+                <h3>알레르기</h3>
+                {% for a in all_allergies %}
+                <label class="tag-check">
+                    <input type="checkbox" name="allergies" value="{{ a.code }}" {% if a.code in my_allergy_codes %}checked{% endif %}>
+                    {{ a.name }}
+                </label>
+                {% empty %}
+                <span class="empty-state">등록된 알레르기 항목이 없어요.</span>
+                {% endfor %}
+            </div>
+
+            <button type="submit" class="save-btn">저장하기</button>
+        </form>
+
+        <form method="post" action="{% url 'accounts:logout' %}" style="margin-top: 14px;">
+            {% csrf_token %}
+            <button type="submit" class="save-btn" style="background: white; color: var(--ink-soft); border: 1px solid #DCE8EF;">로그아웃</button>
+        </form>
+       {% bottom_nav "mypage" %}
+    </div>
+</div>
+
+</body>
+</html>
