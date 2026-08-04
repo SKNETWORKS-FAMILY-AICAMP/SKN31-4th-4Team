@@ -298,8 +298,8 @@ def onboarding_hospital_auth(request):
     ).first()
 
     if request.method == "POST":
-        phone = request.POST.get("phone")
-        patient_code = request.POST.get("patient_code")
+        phone = request.POST.get("phone","").strip()
+        patient_code = request.POST.get("patient_code","").strip()
 
         patient = Patient.objects.filter(
             phone=phone,

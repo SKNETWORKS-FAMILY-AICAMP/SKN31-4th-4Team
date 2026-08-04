@@ -118,8 +118,36 @@ class Patient(models.Model):
     weight_kg = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
 
     is_pregnant = models.BooleanField(default=False)
+    average_sleep_time = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name="평균 취침시간"
+    )
+    average_wake_time = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name="평균 기상시간"
+    )
 
+    meal_pattern = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        choices=[
+            ("regular", "규칙적"),
+            ("irregular", "불규칙적"),
+            ("less_than_2", "하루 2끼 이하"),
+            ("skip", "식사를 자주 거름"),
+        ],
+        verbose_name="식사 습관"
+    )
+        
     note = models.TextField(blank=True)
+    is_smoker = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name="흡연 여부"
+    )
 
     class Meta:
         db_table = "patient"
