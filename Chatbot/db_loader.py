@@ -1,51 +1,72 @@
-"""
-DB(patient / prescription / prescription_drug / medication_log)에서
-챗봇 State(PatientInfo, medication_log)에 맞는 형태로 데이터를 조회·변환하는 모듈.
-get_connection()  sqlite3 문법 기준.
-"""
-
 from datetime import date, datetime
+from tools.db_connect import get_mysql_connection
 
-
-def calc_age(birth_date: str) -> int:
-    """'1942-08-15' 같은 문자열을 받아 만 나이를 계산."""
-    birth = datetime.strptime(birth_date, "%Y-%m-%d").date()
+def calc_age(birth_date) -> int:
+    """'1942-08-15' 형태의 문자열 또는 date 객체를 받아 만 나이를 계산."""
+    if isinstance(birth_date, str):
+        birth = datetime.strptime(birth_date, "%Y-%m-%d").date()
+    else:
+        birth = birth_date
     today = date.today()
     return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
 
 
 def load_patient_info(conn, patient_id: str) -> dict:
-    """patient + prescription + prescription_drug를 조회해 PatientInfo 형태로 매핑."""
+    """patient + prescription + prescription_detail + drug를 조회해 PatientInfo 형태로 매핑."""
     cur = conn.cursor()
-
+    # 1. 환자 기본 정보 조회 (PyMySQL %s 사용)
     cur.execute(
         """
         SELECT name, birth_date, gender, is_pregnant
         FROM patient
-        WHERE patient_id = ?
+        WHERE patient_id = %s
         """,
         (patient_id,),
     )
     row = cur.fetchone()
+
     if row is None:
         raise ValueError(f"patient_id={patient_id} 를 찾을 수 없습니다.")
-    name, birth_date, gender, is_pregnant = row
 
-    # 가장 최근 처방 하나를 기준으로, 처방된 약(복수 가능)을 가져온다.
+    name = row["name"]
+    birth_date = row["birth_date"]
+    gender = row["gender"]
+    is_pregnant = row["is_pregnant"]
+
+    # 2. 가장 최근 처방 ID 조회
     cur.execute(
         """
-        SELECT pd.ingredient_code, pd.drug_product_code
-        FROM prescription p
-        JOIN prescription_drug pd ON pd.prescription_id = p.prescription_id
-        WHERE p.patient_id = ?
-        ORDER BY p.prescription_date DESC
+        SELECT prescription_id
+        FROM prescription
+        WHERE patient_id = %s
+        ORDER BY prescribed_at DESC
+        LIMIT 1
         """,
         (patient_id,),
     )
-    drug_rows = cur.fetchall()
-
-    ingredient_codes = [r[0] for r in drug_rows]
-    drug_names = [r[1] for r in drug_rows]
+    presc_row = cur.fetchone()
+    
+    ingredient_codes = []
+    drug_names = []
+    # 최근 처방 기록이 존재하는 경우에만 상세 약물 정보 조회
+    if presc_row:
+        prescription_id = presc_row["prescription_id"]
+        cur.execute(
+            """
+            SELECT d.ingredient_code, d.drug_name
+            FROM prescription_detail pd
+            JOIN drug d ON pd.drug_product_code = d.drug_product_code
+            WHERE pd.prescription_id = %s
+            ORDER BY pd.seq ASC
+            """,
+            (prescription_id,),
+        )
+        drug_rows = cur.fetchall()
+        ingredient_codes = [r["ingredient_code"] for r in drug_rows]
+        drug_names = [r["drug_name"] for r in drug_rows]
+    print(row)
+    print(type(row["birth_date"]))
+    print(row["birth_date"])
 
     return {
         "name": name,
@@ -58,15 +79,15 @@ def load_patient_info(conn, patient_id: str) -> dict:
         "drugs": drug_names,
     }
 
-#  최근 복용 기록을 조회. calc_hours_since_dose()에 맞게 dict로 반환.
-def load_latest_medication_log(conn, patient_id: str) -> dict | None:
 
+def load_latest_medication_log(conn, patient_id: str) -> dict | None:
+    """최근 복용 기록(dosing_log)을 조회."""
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT medication_log_id, taken_at
-        FROM medication_log
-        WHERE patient_id = ? AND took_medicine = 1
+        SELECT id, taken_at
+        FROM dosing_log
+        WHERE patient_id = %s AND status = 'done'
         ORDER BY taken_at DESC
         LIMIT 1
         """,
@@ -79,17 +100,20 @@ def load_latest_medication_log(conn, patient_id: str) -> dict | None:
 
 
 def load_past_side_effect_summaries(conn, patient_id: str, limit: int = 5) -> list[dict]:
-    """해당 환자의 과거 side_effect_log(장기메모리) 기록을 최근 순으로 조회."""
+    """해당 환자의 과거 symptom_log 기록을 최근 순으로 조회."""
     cur = conn.cursor()
+    # MySQL 안전성을 위해 limit 값을 int로 캐스팅 후 f-string 대입
+    safe_limit = int(limit)
+    
     cur.execute(
-        """
-        SELECT summary, symptom_keyword, reported_at, severity
-        FROM side_effect_log
-        WHERE patient_id = ?
+        f"""
+        SELECT summary, keyword, reported_at, severity
+        FROM symptom_log
+        WHERE patient_id = %s
         ORDER BY reported_at DESC
-        LIMIT ?
+        LIMIT {safe_limit}
         """,
-        (patient_id, limit),
+        (patient_id,),
     )
     rows = cur.fetchall()
     return [

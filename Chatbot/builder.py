@@ -1,8 +1,7 @@
 import sqlite3
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import StateGraph, START, END
-from chat_node import (
-    State,
+from .chat_node import (
     chat_node,
     medicine_node,
     side_effect_node,
@@ -15,7 +14,8 @@ from chat_node import (
     session_end_node,
     symptom_summary_node,
 )
-from db_loader import load_initial_state_data
+from .db_loader import load_initial_state_data
+from .state import State
 
 # 그래프 조립
 def build_graph():
@@ -68,11 +68,9 @@ def build_graph():
 
     return graph.compile(checkpointer=memory)
 
-
 def build_initial_state(patient_db_conn, patient_id: str) -> State:
     """새 세션(thread_id) 시작 시 한 번만 호출. 환자DB를 조회해 State 초기값을 제공"""
     loaded = load_initial_state_data(patient_db_conn, patient_id)
-
     return {
         "messages": [],
         "need_medicine": False,
@@ -88,5 +86,4 @@ def build_initial_state(patient_db_conn, patient_id: str) -> State:
         "system_signal": None,
         "end_signal": None,
     }
-
 

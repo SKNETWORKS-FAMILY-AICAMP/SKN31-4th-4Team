@@ -2,7 +2,7 @@ from typing import TypedDict, Annotated, Literal, Optional
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, Field
 from langgraph.graph.message import add_messages
-
+from typing import Any, Dict, List, Optional, TypedDict
 
 class PatientInfo(TypedDict):
     name: str
@@ -19,20 +19,19 @@ class MedicationLog(TypedDict):
 
 
 class State(TypedDict):
-    messages: Annotated[list[BaseMessage], add_messages]
+    messages: List[Dict[str, Any]]
     need_medicine: bool
-    medicine_side_effect: list[dict] | None
-    patient_info: PatientInfo
-    medication_log: MedicationLog | None
-    hours_since_dose: float | None
-    past_side_effect_summaries: list[dict]
+    medicine_side_effect: Optional[str]
+    patient_info: Dict[str, Any]
+    medication_log: Optional[Dict[str, Any]]
+    hours_since_dose: Optional[float]
+    past_side_effect_summaries: List[Dict[str, Any]]
     symptom_followup: bool
     checklist_index: int
-    checked_symptoms: list[dict]
+    checked_symptoms: List[str]
     sufficient_info: bool
-    system_signal: Literal["timeout", "disconnect"] | None
-    end_signal: Literal["session_end", "symptom_segment"] | None
-
+    system_signal: Optional[str]
+    end_signal: Optional[str]
 
 
 class ChatRequest(BaseModel):

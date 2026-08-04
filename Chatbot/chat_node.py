@@ -1,15 +1,16 @@
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, RemoveMessage
-from state import State
-from qdrant_loader import retriever
-from datetime import datetime
+from langchain_core.messages import SystemMessage, RemoveMessage, AIMessage
+from .state import State
+from .qdrant_loader import retriever
+from datetime import datetime, date
 
-llm = ChatOpenAI(model="gpt-5.4-mini")
-
-
+# 환경 변수 로드
 load_dotenv()
+
+# LLM 초기화
+llm = ChatOpenAI(model="gpt-5.4-mini")
 
 
 class RouteResult(BaseModel):
@@ -25,13 +26,14 @@ class FollowupRouteResult(BaseModel):
         description="지금까지의 대화 내역으로 부작용 문진에 필요한 정보가 충분히 모였다고 판단되면 True"
     )
 
-# boolean값 반환
+# Structured Output 적용
 router_llm = llm.with_structured_output(RouteResult)
 followup_router_llm = llm.with_structured_output(FollowupRouteResult, method="function_calling")
 
+
 # state 확인 후 약정보 조회 노드 및 일반 채팅 노드 분기
 def router(state: State):
-    if state["need_medicine"]:
+    if state.get("need_medicine"):
         return "medicine_node"
     return "general_chat_node"
 
@@ -49,17 +51,18 @@ def entry_router(state: State):
         return "followup_gate_node"
     return "chat_node"
 
+
 # 일반 대화로 빠질지, 문진을 이어갈지, 증상 구간 요약으로 넘어갈지 판단.
 def followup_router(state: State):
     if state.get("sufficient_info"):
         return "symptom_summary_node"
-    if state["symptom_followup"]:
+    if state.get("symptom_followup"):
         return "side_effect_followup_node"
     return "general_chat_node"
 
+
 # 약 정보가 필요한지 판단하는 노드
 def chat_node(state: State):
-    
     ROUTER_SYSTEM_PROMPT = """
     사용자가 방금 한 말이 다음에 해당하면 need_medicine=True로 판단한다:
     - 복용 중인 약의 부작용, 주의사항, 용법·용량에 대한 새로운 질문
@@ -73,7 +76,7 @@ def chat_node(state: State):
     """
 
     result = router_llm.invoke(
-        [SystemMessage(content=ROUTER_SYSTEM_PROMPT)] + state["messages"]
+        [SystemMessage(content=ROUTER_SYSTEM_PROMPT)] + state.get("messages", [])
     )
     return {
         "need_medicine": result.need_medicine,
@@ -95,12 +98,14 @@ def session_end_node(state: State):
 
 # 문진 구간 종료 
 def symptom_summary_node(state: State):
-    checked = state["checked_symptoms"]
+    checked = state.get("checked_symptoms") or []
+    patient_info = state.get("patient_info") or {}
+    
     closing_prompt = f"""
     지금까지 확인된 내용
     - 문진 응답 내역: {checked}
-    복용 중인 약: {state['patient_info'].get('drugs')}
-    조회된 부작용 정보: {state['medicine_side_effect']}
+    복용 중인 약: {patient_info.get('drugs')}
+    조회된 부작용 정보: {state.get('medicine_side_effect')}
     과거 부작용 기록: {state.get("past_side_effect_summaries")}
     
     약물 부작용 분석 어시스턴트로서, 지금까지 확인한 내용을 종합해서 요약 안내한다.
@@ -110,7 +115,7 @@ def symptom_summary_node(state: State):
     """
     response = llm.invoke(closing_prompt)
     
-    remove_old = [RemoveMessage(id=m.id) for m in state["messages"]]
+    remove_old = [RemoveMessage(id=m.id) for m in state.get("messages", []) if hasattr(m, "id")]
     
     return {
         "messages": remove_old + [response],
@@ -122,7 +127,6 @@ def symptom_summary_node(state: State):
 
 # 여러 턴의 추가 문진 진행 중 사용자의 해당 답변 이탈 여부 및 상태를 파악할 충분한 정보가 필요한지 판단.
 def followup_gate_node(state: State):
-
     FOLLOWUP_ROUTER_SYSTEM_PROMPT = """
     당신은 진행 중인 약물 부작용 문진 대화에서, 사용자의 방금 답변이
     계속 문진을 이어가야 하는 내용인지, 그리고 문진에 필요한 정보가 이미 충분히 모였는지 판단하는 라우터 입니다.
@@ -139,7 +143,7 @@ def followup_gate_node(state: State):
     """
 
     result = followup_router_llm.invoke(
-        [SystemMessage(content=FOLLOWUP_ROUTER_SYSTEM_PROMPT)] + state["messages"]
+        [SystemMessage(content=FOLLOWUP_ROUTER_SYSTEM_PROMPT)] + state.get("messages", [])
     )
     return {
         "symptom_followup": result.need_followup,
@@ -147,28 +151,36 @@ def followup_gate_node(state: State):
     }
 
 
-
-# 약 복용기록 시간, 증상 입력 시간 차이 비교 후 증상 발생 시간 state추가 함수(medicine_node에서 사용)
+# 약 복용기록 시간, 증상 입력 시간 차이 비교 후 경과 시간 반환 함수 (시간 단위)
 def calc_hours_since_dose(medication_log: dict | None) -> float | None:
     if not medication_log or not medication_log.get("taken_at"):
         return None
-    taken_at = medication_log["taken_at"]
-    taken_dt = datetime.fromisoformat(taken_at)
+
+    taken_dt = medication_log["taken_at"]
+
+    if isinstance(taken_dt, str):
+        try:
+            taken_dt = datetime.fromisoformat(taken_dt)
+        except ValueError:
+            taken_dt = datetime.strptime(taken_dt, "%Y-%m-%d %H:%M:%S")
+    elif isinstance(taken_dt, date) and not isinstance(taken_dt, datetime):
+        taken_dt = datetime(taken_dt.year, taken_dt.month, taken_dt.day)
+
     now = datetime.now(taken_dt.tzinfo) if taken_dt.tzinfo else datetime.now()
-    return round((now - taken_dt).total_seconds() / 3600, 1)
+    diff = now - taken_dt
+    return round(diff.total_seconds() / 3600.0, 1)
 
 
 # 약에 대한 처방 갯수 만큼 약 부작용 retriever 호출 노드
 def medicine_node(state: State):
-
-    patient_info = state.get("patient_info", {})
+    patient_info = state.get("patient_info") or {}
     ingredient_codes = patient_info.get("ingredient_codes") or []
     drugs = patient_info.get("drugs") or []
 
     if not ingredient_codes:
-        return {"medicine_side_effect": None}
+        return {"medicine_side_effect": []}
 
-    last_message = state["messages"][-1].content if state["messages"] else ""
+    last_message = state["messages"][-1].content if state.get("messages") else ""
     query = f"부작용 및 주의사항: {last_message}"
 
     medicine_side_effect = []
@@ -188,24 +200,47 @@ def medicine_node(state: State):
     }
 
 
-# 약에 대한 정보 조회 후 답변 하는 노드, side_effect_followup_node에서의 첫 질문인지 판단 여부를 위해 checklist_index -1을 설정
+# 약에 대한 정보 조회 후 답변 하는 노드
 def side_effect_node(state: State):
     medicine_side_effect = state.get("medicine_side_effect")
-    if not medicine_side_effect:
-        return {}
+    
+    # 1. 부작용 데이터 존재 유무 실시간 검증
+    has_info = False
+    if medicine_side_effect:
+        for item in medicine_side_effect:
+            info = item.get("side_effect_info")
+            if info:
+                if isinstance(info, (list, dict, set)) and len(info) > 0:
+                    has_info = True
+                elif isinstance(info, str) and info.strip():
+                    has_info = True
+                elif not isinstance(info, (list, dict, set, str)):
+                    has_info = True
+
+    # 2. 정보가 없거나 비어있을 시 예외 반환
+    if not has_info:
+        return {
+            "messages": [AIMessage(content="죄송하지만 다른 증상을 알려 주실 수 있으신가요?")],
+            "checklist_index": -1,
+            "checked_symptoms": [],
+            "symptom_followup": False,  # 정보가 없으므로 추가 문진 진행하지 않음
+        }
+
+    patient_info = state.get("patient_info") or {}
+    drugs = patient_info.get("drugs")
 
     prompt = f"""
     # Context
-    - 전체 대화 이력: {state["messages"]}
-    - 복용 중인 약: {state['patient_info'].get('drugs')}
-    - 이전에 조회된 부작용 정보: {state["medicine_side_effect"]}
+    - 전체 대화 이력: {state.get("messages", [])}
+    - 복용 중인 약: {drugs}
+    - 이전에 조회된 부작용 정보: {medicine_side_effect}
     - 복용 후 경과 시간: {state.get("hours_since_dose")}시간
     - 과거 부작용 기록: {state.get("past_side_effect_summaries")}
     - 환자 정보
-        - 이름: {state['patient_info']['name']}
-        - 나이: {state['patient_info']['age']}
-        - 성별: {state['patient_info']['gender']}
-        - 임신 여부: {state['patient_info']['is_pregnant']}
+        - 이름: {patient_info.get('name')}
+        - 나이: {patient_info.get('age')}
+        - 성별: {patient_info.get('gender')}
+        - 임신 여부: {patient_info.get('is_pregnant')}
 
     Role
     당신은 약물 부작용 분석 전문 어시스턴트다.
@@ -218,7 +253,7 @@ def side_effect_node(state: State):
     복용 중인 약이 2개 이상이면, "이전에 조회된 부작용 정보"의 각 항목이 어떤 약(drug)에 대한 정보인지 명시하며 약별로 구분해서 설명한다.
     "과거 부작용 기록"에 이번 증상과 관련된 내용이 있으면, 과거에도 유사한 증상이 있었다는 점을 자연스럽게 언급한다. 관련 없으면 굳이 언급하지 않는다.
     Output Format
-    복용 중인 약: {state['patient_info'].get('drugs')}
+    복용 중인 약: {drugs}
     """
     response = llm.invoke(prompt)
 
@@ -232,27 +267,31 @@ def side_effect_node(state: State):
 
 # 추가 문진 노드 및 종료시 대화 섹션 삭제
 def side_effect_followup_node(state: State):
-
     MAX_FOLLOWUP_TURNS = 6  # 자유 문진 턴 수 제한
 
-    idx = state["checklist_index"]
-    last_user_answer = state["messages"][-1].content
+    idx = state.get("checklist_index", -1)
+    messages = state.get("messages", [])
+    last_user_answer = messages[-1].content if messages else ""
 
+    checked_symptoms = state.get("checked_symptoms") or []
     if idx == -1:
-        # side_effect_node의 자유 질문에 대한 첫 답변
-        checked = state["checked_symptoms"] + [{"symptom": "일반 증상", "answer": last_user_answer}]
+        checked = checked_symptoms + [{"symptom": "일반 증상", "answer": last_user_answer}]
     else:
-        checked = state["checked_symptoms"] + [{"symptom": f"추가 문진 {idx + 1}", "answer": last_user_answer}]
+        checked = checked_symptoms + [{"symptom": f"추가 문진 {idx + 1}", "answer": last_user_answer}]
 
     idx += 1
     is_last = idx >= MAX_FOLLOWUP_TURNS
+
+    patient_info = state.get("patient_info") or {}
+    drugs = patient_info.get("drugs")
+    medicine_side_effect = state.get("medicine_side_effect")
 
     if is_last:
         closing_prompt = f"""
         지금까지 확인된 내용
         - 문진 응답 내역: {checked}
-        복용 중인 약: {state['patient_info'].get('drugs')}
-        조회된 부작용 정보: {state['medicine_side_effect']}
+        복용 중인 약: {drugs}
+        조회된 부작용 정보: {medicine_side_effect}
         과거 부작용 기록: {state.get("past_side_effect_summaries")}
 
         약물 부작용 분석 어시스턴트로서, 지금까지 확인한 내용을 종합해서 요약 안내한다.
@@ -262,7 +301,7 @@ def side_effect_followup_node(state: State):
         """
         response = llm.invoke(closing_prompt)
 
-        remove_old = [RemoveMessage(id=m.id) for m in state["messages"]]
+        remove_old = [RemoveMessage(id=m.id) for m in messages if hasattr(m, "id")]
 
         return {
             "messages": remove_old + [response],
@@ -274,9 +313,9 @@ def side_effect_followup_node(state: State):
 
     prompt = f"""
     # Context
-    - 전체 대화 이력: {state["messages"]}
-    - 복용 중인 약: {state['patient_info'].get('drugs')}
-    - 조회된 부작용 정보: {state["medicine_side_effect"]}
+    - 전체 대화 이력: {messages}
+    - 복용 중인 약: {drugs}
+    - 조회된 부작용 정보: {medicine_side_effect}
 
     # Role
     당신은 약물 부작용 문진을 돕는 어시스턴트다.
@@ -299,18 +338,19 @@ def side_effect_followup_node(state: State):
     }
 
 
-
 # 일반 대화 채팅 노드
 def general_chat_node(state: State):
+    patient_info = state.get("patient_info") or {}
+    
     prompt = f"""
     # Context
     - 환자 정보
-        - 이름: {state['patient_info']['name']}
-        - 나이: {state['patient_info']['age']}
-        - 성별: {state['patient_info']['gender']}
-        - 임신 여부: {state['patient_info']['is_pregnant']}
-        - 복용 중인 약: {state['patient_info'].get('drugs')}
-    - 전체 대화 이력: {state["messages"]}
+        - 이름: {patient_info.get('name')}
+        - 나이: {patient_info.get('age')}
+        - 성별: {patient_info.get('gender')}
+        - 임신 여부: {patient_info.get('is_pregnant')}
+        - 복용 중인 약: {patient_info.get('drugs')}
+    - 전체 대화 이력: {state.get("messages", [])}
     - 과거 부작용 기록: {state.get("past_side_effect_summaries")}
 
     # Role
