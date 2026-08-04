@@ -17,8 +17,13 @@ from django.utils import timezone
 from django.db import IntegrityError
 
 from patients.models import (
-    Doctor, Patient, HospitalVisit, Prescription, PrescriptionDetail,
-    Drug, DosingLog, SideEffectReport,
+    Doctor,
+    Patient,
+    Prescription,
+    PrescriptionDetail,
+    Drug,
+    DosingLog,
+    SymptomLog,
 )
 
 
@@ -27,7 +32,7 @@ def patient_list(request, member_id):
     doctor = get_object_or_404(Doctor, member_id=member_id, user=request.user)
 
     query = request.GET.get("q", "").strip()
-    patients = Patient.objects.filter(visits__hospital=doctor.hospital).distinct()
+    patients = patients = Patient.objects.filter(hospital=doctor.hospital)
     if query:
         patients = patients.filter(name__icontains=query)
 
@@ -55,12 +60,12 @@ def patient_create(request, member_id):
         try:
             user = User.objects.create_user(username=username, password=password)
             patient = Patient.objects.create(
-                patient_id=patient_id, user=user, name=name,
-                gender=gender, birth_date=birth_date,
-            )
-            HospitalVisit.objects.create(
-                patient=patient, hospital=doctor.hospital, doctor=doctor,
-                visit_date=timezone.localdate(), reason="신규 환자 등록",
+                patient_id=patient_id,
+                user=user,
+                hospital=doctor.hospital,
+                name=name,
+                gender=gender,
+                birth_date=birth_date,
             )
         except IntegrityError:
             messages.error(request, "이미 존재하는 환자ID 또는 아이디입니다.")
@@ -74,8 +79,11 @@ def patient_create(request, member_id):
 @login_required
 def patient_detail(request, member_id, patient_id):
     doctor = get_object_or_404(Doctor, member_id=member_id, user=request.user)
-    patient = get_object_or_404(Patient, patient_id=patient_id, visits__hospital=doctor.hospital)
-
+    patient = get_object_or_404(
+    Patient,
+    patient_id=patient_id,
+    hospital=doctor.hospital
+    )
     prescriptions = Prescription.objects.filter(patient=patient, hospital=doctor.hospital) \
         .prefetch_related("details__drug")
 
@@ -94,10 +102,14 @@ def prescription_create(request, member_id, patient_id):
         diagnosis = request.POST.get("diagnosis", "").strip()
         prescribed_at = request.POST.get("prescribed_at") or timezone.localdate()
 
-        prescription = Prescription.objects.create(
-            prescription_id=prescription_id, patient=patient, hospital=doctor.hospital,
-            doctor=doctor, diagnosis=diagnosis, prescribed_at=prescribed_at,
+        Prescription.objects.create(
+            prescription_id=prescription_id,
+            patient=patient,
+            hospital=doctor.hospital,
+            diagnosis=diagnosis,
+            prescribed_at=prescribed_at,
         )
+        
         return redirect("doctors:prescription_detail", member_id=member_id, prescription_id=prescription.prescription_id)
 
     return render(request, "doctors/prescription_create.html", {"doctor": doctor, "patient": patient})
@@ -107,7 +119,7 @@ def prescription_create(request, member_id, patient_id):
 def prescription_detail(request, member_id, prescription_id):
     doctor = get_object_or_404(Doctor, member_id=member_id, user=request.user)
     prescription = get_object_or_404(Prescription, prescription_id=prescription_id, hospital=doctor.hospital)
-    details = prescription.details.select_related("drug")
+    details = prescription.prescriptiondetail_set.select_related("drug")
 
     return render(request, "doctors/prescription_detail.html", {
         "doctor": doctor, "prescription": prescription, "details": details,
@@ -124,7 +136,12 @@ def prescription_add_drug(request, member_id, prescription_id):
         dosage_instruction = request.POST.get("dosage_instruction", "").strip()
         start_date = request.POST.get("start_date") or timezone.localdate()
 
-        next_seq = (prescription.details.count() or 0) + 1
+        next_seq = (
+            PrescriptionDetail.objects
+            .filter(prescription=prescription)
+            .count()
+            + 1
+        )
         PrescriptionDetail.objects.create(
             prescription=prescription, seq=next_seq,
             drug_id=product_code, dosage_instruction=dosage_instruction, start_date=start_date,
@@ -166,9 +183,13 @@ def side_effect_record(request, member_id, detail_id):
         symptom = request.POST.get("symptom", "").strip()
         severity = request.POST.get("severity", "low")
 
-        SideEffectReport.objects.create(
-            patient=detail.prescription.patient, hospital=doctor.hospital,
-            symptom=symptom, severity=severity, source="doctor", verify_status="verified",
+        SymptomLog.objects.create(
+            patient=detail.prescription.patient,
+            prescription=detail.prescription,
+            log_type="free_text",
+            chief_complaint=symptom,
+            severity=severity,
+            reported_at=timezone.now(),
         )
         return redirect("doctors:patient_detail", member_id=member_id, patient_id=detail.prescription.patient.patient_id)
 
@@ -182,7 +203,7 @@ def drug_info(request, member_id, product_code=None):
 
     drug = None
     if product_code:
-        drug = get_object_or_404(Drug, product_code=product_code)
+        Drug.objects.get(drug_product_code=product_code)
 
     results = Drug.objects.filter(drug_name__icontains=query) if query else Drug.objects.none()
 

@@ -11,41 +11,52 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 
 
+from django.contrib.auth import login
+from django.shortcuts import render, redirect
+from patients.models import Patient
+
+
 def login_view(request):
     if request.method == "POST":
-        role = request.POST.get("role", "patient")   # "patient" 또는 "doctor"
-        username = request.POST.get("username", "")
-        password = request.POST.get("password", "")
-
-        user = authenticate(request, username=username, password=password)
-
-        if user is None:
-            return render(request, "accounts/login.html", {
-                "error": "아이디 또는 비밀번호가 올바르지 않습니다.",
-                "role": role,
-            })
+        role = request.POST.get("role", "patient")
 
         if role == "patient":
-            if not hasattr(user, "patient_profile"):
+            patient_id = request.POST.get("patient_id", "").strip()
+            phone = request.POST.get("phone", "").strip()
+
+            try:
+                patient = Patient.objects.select_related("user").get(
+                    patient_id=patient_id,
+                    phone=phone,
+                )
+
+                login(request, patient.user)
+                return redirect("patients:home")   # 원하는 페이지
+
+            except Patient.DoesNotExist:
                 return render(request, "accounts/login.html", {
-                    "error": "환자 회원 계정이 아닙니다.",
+                    "error": "환자번호 또는 전화번호가 올바르지 않습니다.",
                     "role": role,
                 })
-            login(request, user)
-            return redirect(reverse("patients:main", args=[user.patient_profile.patient_id]))
 
-        else:  # doctor
-            if not hasattr(user, "doctor_profile"):
+        # 의사 로그인은 기존 방식 유지
+        else:
+            username = request.POST.get("username", "")
+            password = request.POST.get("password", "")
+
+            user = authenticate(
+                request,
+                username=username,
+                password=password,
+            )
+
+            if user is None:
                 return render(request, "accounts/login.html", {
-                    "error": "병원 회원 계정이 아닙니다.",
+                    "error": "아이디 또는 비밀번호가 올바르지 않습니다.",
                     "role": role,
                 })
+
             login(request, user)
-            return redirect(reverse("doctors:patient_list", args=[user.doctor_profile.member_id]))
+            return redirect("doctors:home")
 
-    return render(request, "accounts/login.html", {"role": "patient"})
-
-
-def logout_view(request):
-    logout(request)
-    return redirect(reverse("accounts:login"))
+    return render(request, "accounts/login.html")

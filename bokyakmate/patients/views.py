@@ -16,15 +16,14 @@ from django.utils import timezone
 
 from .models import (
     Patient, ChatSession, Prescription, PrescriptionDetail,
-    DosingLog, HospitalVisit, ConditionMaster, AllergyMaster,
-    PatientCondition, PatientAllergy,
+    DosingLog,SymptomLog, Hospital
 )
 
 
 def _check_owner(request, patient_id):
     """로그인한 사용자가 이 환자 본인인지 확인 (다른 환자 URL을 직접 쳐서 못 들어가게)."""
     return request.user.is_authenticated and getattr(request.user, "patient_profile", None) \
-        and request.user.patient_profile.patient_id == patient_id
+        and request.user.Patient.patient_id == patient_id
 
 
 @login_required
@@ -168,15 +167,12 @@ def records(request, patient_id):
     prescriptions = (
         Prescription.objects.filter(patient=patient)
         .prefetch_related("details__drug")
-        .select_related("doctor", "visit__hospital")
     )
-    visits = HospitalVisit.objects.filter(patient=patient).select_related("hospital", "doctor")
 
     context = {
         "patient": patient,
         "active_tab": active_tab,
         "prescriptions": prescriptions,
-        "visits": visits,
         "main_url": reverse("patients:main", args=[patient_id]),
     }
     return render(request, "patients/records.html", context)
@@ -184,37 +180,38 @@ def records(request, patient_id):
 
 @login_required
 def mypage(request, patient_id):
-    """마이페이지 — 기저질환/알레르기/임신여부 수정."""
+    """마이페이지 - 기저질환/알레르기 등을 note에 저장"""
+
     patient = get_object_or_404(Patient, patient_id=patient_id)
 
     if request.method == "POST":
         patient.is_pregnant = request.POST.get("is_pregnant") == "on"
+
+        conditions = request.POST.getlist("conditions")
+        allergies = request.POST.getlist("allergies")
+        etc = request.POST.get("etc", "").strip()
+
+        notes = []
+
+        if conditions:
+            notes.append(f"기저질환: {', '.join(conditions)}")
+
+        if allergies:
+            notes.append(f"알레르기: {', '.join(allergies)}")
+
+        if etc:
+            notes.append(f"기타: {etc}")
+
+        patient.note = "\n".join(notes)
         patient.save()
 
-        selected_conditions = request.POST.getlist("conditions")
-        PatientCondition.objects.filter(patient=patient).delete()
-        PatientCondition.objects.bulk_create([
-            PatientCondition(patient=patient, condition_id=code) for code in selected_conditions
-        ])
-
-        selected_allergies = request.POST.getlist("allergies")
-        PatientAllergy.objects.filter(patient=patient).delete()
-        PatientAllergy.objects.bulk_create([
-            PatientAllergy(patient=patient, allergy_id=code) for code in selected_allergies
-        ])
         return redirect("patients:mypage", patient_id=patient_id)
-
-    my_condition_codes = set(patient.conditions.values_list("code", flat=True))
-    my_allergy_codes = set(patient.allergies.values_list("code", flat=True))
 
     context = {
         "patient": patient,
-        "all_conditions": ConditionMaster.objects.all(),
-        "all_allergies": AllergyMaster.objects.all(),
-        "my_condition_codes": my_condition_codes,
-        "my_allergy_codes": my_allergy_codes,
         "main_url": reverse("patients:main", args=[patient_id]),
     }
+
     return render(request, "patients/mypage.html", context)
 
 
@@ -332,12 +329,9 @@ def onboarding_info_confirm(request):
     if request.method == "POST":
         return redirect("patients:onboarding_health_basic")
 
-    latest_visit = HospitalVisit.objects.filter(patient=patient).order_by("-visit_date").first()
-
     return render(request, "patients/onboarding_info_confirm.html", {
         "patient": patient,
         "selected_hospital": selected_hospital,
-        "latest_visit_date": latest_visit.visit_date if latest_visit else None,
     })
 
 

@@ -1,0 +1,5 @@
+# Environments (API 키, 비밀번호 등 민감 정보 보호)
+.env
+.env.local
+.env.*
+!.env.example
