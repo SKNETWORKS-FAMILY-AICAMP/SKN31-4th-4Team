@@ -22,7 +22,10 @@ register = template.Library()
 @register.inclusion_tag("patients/_bottom_nav.html", takes_context=True)
 def bottom_nav(context, active_tab=""):
     request = context["request"]
-    patient_id = request.user.patient_profile.patient_id  # 로그인한 환자 기준
+    # [수정] Patient.user 필드의 related_name이 "patient_profile"이 아니라 "patient"라서
+    # (models.py: user = OneToOneField(..., related_name="patient")) 이렇게 접근해야 한다.
+    # 기존 코드는 존재하지 않는 "patient_profile" 속성을 읽으려다 AttributeError가 났었다.
+    patient_id = request.user.patient.patient_id  # 로그인한 환자 기준
 
     return {
         "main_url": reverse("patients:main", args=[patient_id]),
