@@ -29,9 +29,9 @@
         <div class="login-error" style="margin-bottom:14px;">{{ error }}</div>
         {% endif %}
 
-        {# 문자 인증(OTP) 없이, 병원이 이미 발급해둔 환자 고유코드(patient_id)를
+        <!-- {# 문자 인증(OTP) 없이, 병원이 이미 발급해둔 환자 고유코드(patient_id)를
            그대로 인증 수단으로 쓴다. 전화번호+고유코드 조합이 실제 Patient
-           레코드와 일치하는지만 확인하면 되므로 별도 인증코드 테이블이 필요 없다. #}
+           레코드와 일치하는지만 확인하면 되므로 별도 인증코드 테이블이 필요 없다. #} -->
         <form method="post">
             {% csrf_token %}
             <p class="onb-field-label">전화번호</p>

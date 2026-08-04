@@ -268,7 +268,7 @@ def chatbot_start(request, patient_id):
 # 마지막 단계(health_additional)에서 그 환자로 로그인시켜 홈으로 보낸다.
 # ------------------------------------------------------------------
 
-_DEMO_PATIENT_ID = "p001"
+# _DEMO_PATIENT_ID = "P-2009"
 
 
 def onboarding_start(request):
@@ -276,7 +276,7 @@ def onboarding_start(request):
 
 
 def onboarding_hospital_select(request):
-    from .models import Hospital
+    from .models import Hospital, Patient
     hospitals = Hospital.objects.all()
 
     if request.method == "POST":
@@ -287,44 +287,84 @@ def onboarding_hospital_select(request):
     return render(request, "patients/onboarding_hospital_select.html", {"hospitals": hospitals})
 
 
+from .models import Patient
+
 def onboarding_hospital_auth(request):
     from .models import Hospital
+
     hospital_code = request.session.get("onboarding_hospital_code")
-    selected_hospital = Hospital.objects.filter(hospital_code=hospital_code).first()
+    selected_hospital = Hospital.objects.filter(
+        hospital_code=hospital_code
+    ).first()
 
     if request.method == "POST":
-        # TODO: 문자 인증(OTP) 대신, 입력받은 phone+patient_code가
-        # 실제 Patient(phone=..., patient_id=patient_code) 레코드와
-        # 일치하는지만 확인하면 된다. 별도 인증코드 테이블 불필요.
-        #   phone = request.POST.get("phone")
-        #   patient_code = request.POST.get("patient_code")
-        #   patient = Patient.objects.filter(phone=phone, patient_id=patient_code).first()
-        #   if not patient: return render(..., {"error": "전화번호 또는 고유코드가 일치하지 않습니다."})
+        phone = request.POST.get("phone")
+        patient_code = request.POST.get("patient_code")
+
+        patient = Patient.objects.filter(
+            phone=phone,
+            patient_id=patient_code,
+            hospital=selected_hospital
+        ).first()
+
+        if not patient:
+            return render(
+                request,
+                "patients/onboarding_hospital_auth.html",
+                {
+                    "selected_hospital": selected_hospital,
+                    "error": "전화번호 또는 환자코드가 일치하지 않습니다."
+                }
+            )
+
+        # Session 저장
+        request.session["patient_id"] = patient.patient_id
+
         return redirect("patients:onboarding_loading")
 
-    return render(request, "patients/onboarding_hospital_auth.html", {
-        "selected_hospital": selected_hospital,
-    })
+    return render(
+        request,
+        "patients/onboarding_hospital_auth.html",
+        {
+            "selected_hospital": selected_hospital,
+        }
+    )
 
 
 def onboarding_loading(request):
-    from .models import Hospital
+    from .models import Hospital, Patient
+
     hospital_code = request.session.get("onboarding_hospital_code")
-    selected_hospital = Hospital.objects.filter(hospital_code=hospital_code).first()
-    demo_patient = Patient.objects.filter(patient_id=_DEMO_PATIENT_ID).first()
+    patient_id = request.session.get("patient_id")
+
+    selected_hospital = Hospital.objects.filter(
+        hospital_code=hospital_code
+    ).first()
+
+    patient = Patient.objects.filter(
+        patient_id=patient_id
+    ).first()
 
     return render(request, "patients/onboarding_loading.html", {
         "selected_hospital": selected_hospital,
-        "patient_name": demo_patient.name if demo_patient else "",
-        "step": 3,  # 데모라 항상 전체 완료 상태로 보여줌
+        "patient_name": patient.name if patient else "",
+        "step": 3,
     })
 
-
 def onboarding_info_confirm(request):
-    from .models import Hospital
+    from .models import Hospital, Patient
+
     hospital_code = request.session.get("onboarding_hospital_code")
-    selected_hospital = Hospital.objects.filter(hospital_code=hospital_code).first()
-    patient = get_object_or_404(Patient, patient_id=_DEMO_PATIENT_ID)
+    patient_id = request.session.get("patient_id")
+
+    selected_hospital = Hospital.objects.filter(
+        hospital_code=hospital_code
+    ).first()
+
+    patient = get_object_or_404(
+        Patient,
+        patient_id=patient_id
+    )
 
     if request.method == "POST":
         return redirect("patients:onboarding_health_basic")
@@ -333,8 +373,6 @@ def onboarding_info_confirm(request):
         "patient": patient,
         "selected_hospital": selected_hospital,
     })
-
-
 def onboarding_health_basic(request):
     if request.method == "POST":
         # TODO: 실제로는 Patient.height_cm/weight_kg 등 저장

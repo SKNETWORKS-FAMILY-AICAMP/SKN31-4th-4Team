@@ -87,9 +87,9 @@
     <div class="login-form"><div class="login-error">{{ error }}</div></div>
     {% endif %}
 
-    <!-- {# 환자 탭: 아이디/비번 없음. 온보딩(병원선택→전화번호+인증번호)이 곧 로그인 역할.
+    <!-- {% comment %} 환자 탭: 아이디/비번 없음. 온보딩(병원선택→전화번호+인증번호)이 곧 로그인 역할.
        이미 가입된 환자인지(건강정보 입력 단계를 건너뛸지) 판단은 온보딩의
-       '병원 인증' 단계에서 전화번호로 조회해 백엔드가 분기해야 한다. #} -->
+       '병원 인증' 단계에서 전화번호로 조회해 백엔드가 분기해야 한다. {% endcomment %} -->
     <div class="patient-entry" id="patient-entry">
         <p class="patient-entry-desc">
             병원에서 안내받은 인증번호로 시작할 수 있어요.<br>
