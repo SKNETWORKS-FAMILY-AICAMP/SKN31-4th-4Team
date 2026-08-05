@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from datetime import date
 
 
 # =========================
@@ -114,6 +115,13 @@ class Patient(models.Model):
 
     birth_date = models.DateField()
 
+    @property
+    def age(self):
+        today = date.today()
+        # 생일 안 지났으면 -1
+        return today.year - self.birth_date.year - (
+            (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
+        )
     height_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
     weight_kg = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
 
