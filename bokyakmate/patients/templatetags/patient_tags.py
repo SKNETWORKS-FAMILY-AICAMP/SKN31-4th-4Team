@@ -21,7 +21,7 @@ register = template.Library()
 @register.inclusion_tag("patients/_bottom_nav.html", takes_context=True)
 def bottom_nav(context, active_tab=""):
     request = context["request"]
-    patient = getattr(request.user, "Patient", None)
+    patient = getattr(request.user, "patient", None)
     if patient is None:
         return {
             "main_url": "", "calendar_url": "", "records_url": "",

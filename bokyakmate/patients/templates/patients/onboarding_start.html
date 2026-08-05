@@ -15,10 +15,10 @@
             <p class="onb-title">복약메이트와 함께<br>안전한 복약 관리 시작하기</p>
             <p class="onb-desc">병원 처방 기록을 불러와서<br>맞춤형 복약 상담과 기록을 도와드려요.</p>
         </div>
-        <button type="button" class="onb-btn-primary"
-                onclick="location.href='{% url 'patients:onboarding_hospital_select' %}'">
+        <a href="{% url 'patients:onboarding_hospital_select' %}" class="onb-btn-primary"
+            style="display:block; text-align:center; text-decoration:none;">
             시작하기
-        </button>
+        </a>
     </div>
 </div>
 

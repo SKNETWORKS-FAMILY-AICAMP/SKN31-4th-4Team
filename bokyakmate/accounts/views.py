@@ -60,3 +60,8 @@ def login_view(request):
             return redirect("doctors:home")
 
     return render(request, "accounts/login.html")
+
+
+def logout_view(request):
+    logout(request)
+    return redirect(reverse("accounts:login"))
