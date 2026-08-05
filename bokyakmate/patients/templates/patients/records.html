@@ -41,13 +41,13 @@
                 <div class="title">{{ presc.prescribed_at|date:"Y.m.d" }}</div>
                 <div class="meta">{% if presc.diagnosis %}{{ presc.diagnosis }}·{{ presc.hospital.hospital_name }}{% endif %}</div>
 
-                {% if presc.details.all %}
+                <!-- {% if presc.details.all %}
                 <div class="visit-drug-list">
                     {% for d in presc.details.all %}
                     <span class="tag-check">{{ d.drug.drug_name }}</span>
                     {% endfor %}
                 </div>
-                {% endif %}
+                {% endif %} -->
 
                 {% if presc.note %}
                 <div class="meta visit-note">{{ presc.note }}</div>
