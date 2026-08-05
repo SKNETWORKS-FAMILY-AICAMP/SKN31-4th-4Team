@@ -25,8 +25,10 @@ from .models import (
 
 def _check_owner(request, patient_id):
     """로그인한 사용자가 이 환자 본인인지 확인 (다른 환자 URL을 직접 쳐서 못 들어가게)."""
-    return request.user.is_authenticated and getattr(request.user, "patient_profile", None) \
-        and request.user.Patient.patient_id == patient_id
+    # [수정] models.py에서 Patient.user의 related_name은 "patient"다 (patient_profile 아님).
+    patient_profile = getattr(request.user, "patient", None)
+    return request.user.is_authenticated and patient_profile \
+        and patient_profile.patient_id == patient_id
 
 
 @login_required
@@ -323,6 +325,18 @@ def onboarding_hospital_auth(request):
         # Session 저장
         request.session["patient_id"] = patient.patient_id
 
+        # ========== [추가] 여기가 핵심 분기 지점 ==========
+        # DB에 건강정보(키/몸무게)가 이미 있는 환자면 건강정보 입력 화면들을
+        # 전부 건너뛰고 바로 로그인 처리 후 메인 화면으로 이동시킨다.
+        # (이 두 값은 onboarding_health_basic에서 저장된다)
+        if patient.height_cm is not None and patient.weight_kg is not None:
+            login(request, patient.user)
+            request.session.pop("onboarding_hospital_code", None)
+            request.session.pop("patient_id", None)
+            return redirect("patients:main", patient_id=patient.patient_id)
+        # ========== [추가] 분기 끝 ==========
+
+        # 건강정보가 아직 없는 환자(최초 로그인) -> 기존 온보딩 순서 그대로 진행
         return redirect("patients:onboarding_loading")
 
     return render(
