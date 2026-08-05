@@ -9,69 +9,69 @@
 </head>
 <body>
 
-<div class="phone">
+<div class="phone" style="height: 500px;">
     <div class="subpage-header">
         <a href="{{ main_url }}">←</a>
         <h1>마이페이지</h1>
     </div>
 
     <div class="subpage-body">
-        <div class="mypage-section">
-            <h3>기본 정보</h3>
-            <div class="record-card">
-                <div class="title">{{ patient.name }}</div>
-                <div class="meta">{{ patient.get_gender_display }} · {{ patient.age }}세 · {{ patient.weight_kg|default:"-" }}kg</div>
-            </div>
-        </div>
-
-        <form method="post">
-            {% csrf_token %}
-
-            {% if patient.gender == "F" %}
             <div class="mypage-section">
-                <h3>임신 여부</h3>
-                <label class="pregnant-row">
-                    <input type="checkbox" name="is_pregnant" {% if patient.is_pregnant %}checked{% endif %}>
-                    현재 임신 중이에요
-                </label>
+                <h3>기본 정보</h3>
+                <div class="record-card">
+                    <div class="title">{{ patient.name }}</div>
+                    <div class="meta">{{ patient.get_gender_display }} · {{ patient.age }}세 · {{patient.weight_kg|default:"-" }}kg</div>
+                </div>
             </div>
-            {% endif %}
-        <div class="mypage-section">
-        <h3>평균 취침 · 기상 시간</h3>
-        <div class="onb-time-grid">
-            <div>
-                <p class="onb-field-label">평균 취침시간</p>
-                <input type="time" name="sleep_time" class="onb-input"
-                    value="{{ patient.average_sleep_time|time:'H:i' }}">
-            </div>
-            <div>
-                <p class="onb-field-label">평균 기상시간</p>
-                <input type="time" name="wake_time" class="onb-input"
-                    value="{{ patient.average_wake_time|time:'H:i' }}">
-            </div>
-        </div>
-    </div>
-    <div class="mypage-section">
-        <h3>식사 습관</h3>
-        <div class="record-card">
-            {% if patient.meal_pattern %}
-                <span class="tag-check">{{ patient.get_meal_pattern_display }}</span>
-            {% else %}
-                <span class="empty-state">등록된 식사 습관이 없어요.</span>
-            {% endif %}
-        </div>
-    </div>
-        <div class="mypage-section">
-            <h3>기저질환</h3>
-            <div class="record-card">
-                {% if patient.note %}
-                <span class="tag-check">{{ patient.note }}</span>
-                {% else %}
-                <span class="empty-state">등록된 정보가 없어요.</span>
+    
+            <form method="post">
+                {% csrf_token %}
+    
+                {% if patient.gender == "F" %}
+                <div class="mypage-section">
+                    <h3>임신 여부</h3>
+                    <label class="pregnant-row">
+                        <input type="checkbox" name="is_pregnant" {% if patient.is_pregnant %}checked{% endif %}>
+                        현재 임신 중이에요
+                    </label>
+                </div>
                 {% endif %}
-            </div>
-        </div>
-            <!-- <div class="mypage-section">
+                <div class="mypage-section">
+                    <h3>평균 취침 · 기상 시간</h3>
+                    <div class="onb-time-grid">
+                        <div>
+                            <p class="onb-field-label">평균 취침시간</p>
+                            <input type="time" name="sleep_time" class="onb-input"
+                                value="{{ patient.average_sleep_time|time:'H:i' }}">
+                        </div>
+                        <div>
+                            <p class="onb-field-label">평균 기상시간</p>
+                            <input type="time" name="wake_time" class="onb-input"
+                                value="{{ patient.average_wake_time|time:'H:i' }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="mypage-section">
+                    <h3>식사 습관</h3>
+                    <div class="record-card">
+                        {% if patient.meal_pattern %}
+                        <span class="tag-check">{{ patient.get_meal_pattern_display }}</span>
+                        {% else %}
+                        <span class="empty-state">등록된 식사 습관이 없어요.</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mypage-section">
+                    <h3>기저질환</h3>
+                    <div class="record-card">
+                        {% if patient.note %}
+                        <span class="tag-check">{{ patient.note }}</span>
+                        {% else %}
+                        <span class="empty-state">등록된 정보가 없어요.</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- <div class="mypage-section">
                 <h3>알레르기</h3>
                 {% for a in all_allergies %}
                 <label class="tag-check">
@@ -82,16 +82,11 @@
                 <span class="empty-state">등록된 알레르기 항목이 없어요.</span>
                 {% endfor %}
             </div>  -->
-
             <button type="submit" class="save-btn">저장하기</button>
-        </form>
-
-        <form method="post" action="{% url 'accounts:logout' %}" style="margin-top: 14px;">
-            {% csrf_token %}
             <button type="submit" class="save-btn" style="background: white; color: var(--ink-soft); border: 1px solid #DCE8EF;">로그아웃</button>
         </form>
-       {% bottom_nav "mypage" %}
     </div>
+    <div class="mypage-nav-wrap">{% bottom_nav "mypage" %}</div>
 </div>
 
 </body>
