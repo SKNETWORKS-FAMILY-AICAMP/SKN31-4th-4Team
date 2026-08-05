@@ -24,15 +24,18 @@ def bottom_nav(context, active_tab=""):
     patient = getattr(request.user, "patient", None)
     if patient is None:
         return {
+            "request": request,
             "main_url": "", "calendar_url": "", "records_url": "",
             "mypage_url": "", "active_tab": active_tab,
         }
     patient_id = patient.patient_id
 
     return {
+        "request": request,
         "main_url": reverse("patients:main", args=[patient_id]),
         "calendar_url": reverse("patients:dosing_calendar", args=[patient_id]),
         "records_url": reverse("patients:records", args=[patient_id]),
         "mypage_url": reverse("patients:mypage", args=[patient_id]),
+        "logout_url": reverse("accounts:logout"),
         "active_tab": active_tab,
     }
