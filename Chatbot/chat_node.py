@@ -108,17 +108,16 @@ def symptom_summary_node(state: State):
     조회된 부작용 정보: {state.get('medicine_side_effect')}
     과거 부작용 기록: {state.get("past_side_effect_summaries")}
     
-    약물 부작용 분석 어시스턴트로서, 지금까지 확인한 내용을 종합해서 요약 안내한다.
+    약물 부작용 분석 어시스턴트로서, 지금까지 확인한 내용을 종합해서 요약 안내한다. 증상과 관련된 내용이 아닌건 안내하지 않는다.
     복용 중인 약이 2개 이상이면, 확인된 증상/부작용을 가능한 한 관련된 약별로 구분해서 요약한다. 특정 약과 명확히 연결 짓기 어려운 내용은 구분 없이 안내한다.
     과거 부작용 기록 중 이번과 관련된 이력(특히 과거 severity)이 있으면 위험성 판단에 참고한다.
     이어서 위 내용을 근거로 병원에 당장 방문해야 하는 수준인지 위험성을 판단해서 안내하고 대화를 마무리한다.
     """
     response = llm.invoke(closing_prompt)
     
-    remove_old = [RemoveMessage(id=m.id) for m in state.get("messages", []) if hasattr(m, "id")]
     
     return {
-        "messages": remove_old + [response],
+        "messages": [response],
         "checked_symptoms": checked,
         "symptom_followup": False,
         "end_signal": "symptom_segment",
@@ -138,8 +137,8 @@ def followup_gate_node(state: State):
     다음은 need_followup=False로 판단한다:
     - 문진과 무관한 화제로 전환하는 경우
 
-    sufficient_info는 need_followup 여부와 별개로, 지금까지 오간 대화만으로 증상 양상/경과를 판단하기에
-    충분한 정보가 모였다고 볼 수 있으면 True로 판단한다.
+    sufficient_info는 need_followup 여부와 별개로, 2~3번은 꼭 추가로 물어보고 이후 지금까지 오간 대화로 증상 양상/경과를 판단할 수 있을거 같다면
+    True로 판단한다.
     """
 
     result = followup_router_llm.invoke(
@@ -294,17 +293,16 @@ def side_effect_followup_node(state: State):
         조회된 부작용 정보: {medicine_side_effect}
         과거 부작용 기록: {state.get("past_side_effect_summaries")}
 
-        약물 부작용 분석 어시스턴트로서, 지금까지 확인한 내용을 종합해서 요약 안내한다.
+        약물 부작용 분석 어시스턴트로서, 지금까지 확인한 내용을 종합해서 요약 안내한다. 증상과 관련한 내용이 아닌건 안내하지 않는다.
         복용 중인 약이 2개 이상이면, 확인된 증상/부작용을 가능한 한 관련된 약별로 구분해서 요약한다. 특정 약과 명확히 연결 짓기 어려운 내용은 구분 없이 안내한다.
         과거 부작용 기록 중 이번과 관련된 이력(특히 과거 severity)이 있으면 위험성 판단에 참고한다.
         이어서 위 내용을 근거로 병원에 당장 방문해야 하는 수준인지 위험성을 판단해서 안내하고 대화를 마무리한다.
         """
         response = llm.invoke(closing_prompt)
 
-        remove_old = [RemoveMessage(id=m.id) for m in messages if hasattr(m, "id")]
 
         return {
-            "messages": remove_old + [response],
+            "messages": [response],
             "checked_symptoms": checked,
             "checklist_index": idx,
             "symptom_followup": False,
@@ -327,7 +325,7 @@ def side_effect_followup_node(state: State):
     # Constraints
     1. 인과성에 대한 최종 판단(약 때문인지 아닌지)은 하지 않고 이와 관련된 답변도 하지 않는다.
     2. 이미 물어본 내용은 다시 묻지 않는다.
-    3. 복용 중인 약이 2개 이상이면, 필요 시 어떤 약과 관련된 질문인지 명시하며 약별로 구분해서 질문한다.
+    3. 추가 질문은 2~3개 정도만 물어본다.
     """
     response = llm.invoke(prompt)
     return {

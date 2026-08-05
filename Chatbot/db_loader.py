@@ -52,46 +52,28 @@ def load_patient_info(conn, patient_id: str) -> dict:
     drug_names = []
     if presc_row:
         prescription_id = presc_row["prescription_id"]
-        # MySQL에는 ingredient_code가 없으므로 제품코드/약품명만 가져온다
+        # MySQL drug 테이블에 처방된 약이 누락되었을 수 있으므로, prescription_detail에서 제품코드만 가져온 뒤
+        # Neo4j(get_drug_detail)를 통해 상세 약명과 성분코드를 매핑합니다.
         cur.execute(
             """
-            SELECT d.drug_product_code, d.drug_name
-            FROM prescription_detail pd
-            JOIN drug d ON pd.drug_product_code = d.drug_product_code
-            WHERE pd.prescription_id = %s
-            ORDER BY pd.seq ASC
+            SELECT drug_product_code
+            FROM prescription_detail
+            WHERE prescription_id = %s
+            ORDER BY seq ASC
             """,
             (prescription_id,),
         )
         drug_rows = cur.fetchall()
-    
-        # 제품코드별로 Neo4j에서 성분 목록을 조회해 매핑한다.
-        # 약 하나에 성분이 여러 개(복합제)일 수 있어서, 성분마다 같은 약품명을 짝지어 기록한다.
-        drug_infos = []
 
         for r in drug_rows:
-            
-            drug_name = r["drug_name"]
-        
             product_code = r["drug_product_code"]
             detail = get_drug_detail(product_code)
-            ingredient_code = detail.get("ingredient_code")
             
-            if ingredient_code:
-                ingredient_codes.append(ingredient_code)
-                drug_names.append(drug_name)
-
-                drug_infos.append({
-                    "drug_name": drug_name,
-                    "ingredient_code": ingredient_code,
-                })
-        
-            for ing in detail.get("ingredients") or []:
-                if ing.get("ingredient_code"):
-                    drug_infos.append({
-                        "drug_name": drug_name,
-                        "ingredient_code": ing["ingredient_code"],
-                    })
+            drug_name = detail.get("drug_name") if detail else None
+            ingredient_code = detail.get("content_code") if detail else None
+            
+            ingredient_codes.append(ingredient_code)
+            drug_names.append(drug_name)
  
     return {
         "patient_id": patient_id,
@@ -101,7 +83,7 @@ def load_patient_info(conn, patient_id: str) -> dict:
         "is_pregnant": bool(is_pregnant),
         "ingredient_code": ingredient_codes[0] if ingredient_codes else None,
         "drug": drug_names[0] if drug_names else None,
-        "ingredient_codes": ingredient_codes,  
+        "ingredient_codes": ingredient_codes,  # 다중 약 대응을 위해 참고용으로 같이 실어둠
         "drugs": drug_names,
     }
 
@@ -146,14 +128,14 @@ def load_past_side_effect_summaries(conn, patient_id: str, limit: int = 5) -> li
     )
     rows = cur.fetchall()
     return [
-    {
-        "summary": r["summary"],
-        "symptom_keyword": r["symptom_keyword"],
-        "reported_at": r["reported_at"],
-        "severity": r["severity"],
-    }
-    for r in rows
-]
+        {
+            "summary": r[0],
+            "symptom_keyword": r[1],
+            "reported_at": r[2],
+            "severity": r[3],
+        }
+        for r in rows
+    ]
 
 
 def load_initial_state_data(conn,patient_id: str) -> dict:
