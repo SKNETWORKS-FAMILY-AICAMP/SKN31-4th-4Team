@@ -143,6 +143,7 @@ class Patient(models.Model):
     )
         
     note = models.TextField(blank=True)
+
     is_smoker = models.BooleanField(
         null=True,
         blank=True,
@@ -188,7 +189,8 @@ class Prescription(models.Model):
 class PrescriptionDetail(models.Model):
     prescription = models.ForeignKey(
         Prescription,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name="details"
     )
 
     seq = models.IntegerField()

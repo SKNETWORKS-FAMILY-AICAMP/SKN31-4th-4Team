@@ -9,11 +9,13 @@ patients/views.py
 import calendar
 from datetime import date
 
-from django.contrib.auth import login  # [추가] 온보딩 완료/재로그인 분기에서 로그인 처리에 사용
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
+from decimal import Decimal
+from datetime import datetime
+from django.core.exceptions import ObjectDoesNotExist
 
 from .models import (
     Patient, ChatSession, Prescription, PrescriptionDetail,
@@ -23,10 +25,8 @@ from .models import (
 
 def _check_owner(request, patient_id):
     """로그인한 사용자가 이 환자 본인인지 확인 (다른 환자 URL을 직접 쳐서 못 들어가게)."""
-    # [수정] Patient.user의 related_name은 "patient_profile"이 아니라 "patient"다.
-    patient_profile = getattr(request.user, "patient", None)
-    return request.user.is_authenticated and patient_profile \
-        and patient_profile.patient_id == patient_id
+    return request.user.is_authenticated and getattr(request.user, "patient_profile", None) \
+        and request.user.Patient.patient_id == patient_id
 
 
 @login_required
@@ -39,24 +39,33 @@ def patient_main(request, patient_id):
         .first()
     )
     current_drug = None
-    if latest_prescription and latest_prescription.details.exists():
-        current_drug = latest_prescription.details.first().drug
+    if latest_prescription:
+        for detail in latest_prescription.details.all():
+            try:
+                current_drug = detail.drug
+                break
+            except ObjectDoesNotExist:
+                continue  # 깨진 FK는 건너뜀
 
     recent_chats = ChatSession.objects.filter(patient=patient)[:3]
 
-    # 오늘의 복약 위젯
     today = timezone.localdate()
     todays_logs = DosingLog.objects.filter(patient=patient, scheduled_at__date=today) \
         .select_related("prescription_detail__drug")
-    today_doses = [
-        {
+
+    today_doses = []
+    for log in todays_logs:
+        try:
+            drug_name = log.prescription_detail.drug.drug_name
+        except ObjectDoesNotExist:
+            drug_name = "알 수 없는 약"
+        today_doses.append({
             "id": log.id,
-            "drug_name": log.prescription_detail.drug.drug_name,
+            "drug_name": drug_name,
             "checked": log.status == "done",
             "missed": log.status == "missed",
-        }
-        for log in todays_logs
-    ]
+        })
+
     all_doses_done = bool(today_doses) and all(d["checked"] for d in today_doses)
 
     quick_cards = [
@@ -83,7 +92,6 @@ def patient_main(request, patient_id):
         "chatbot_url": reverse("patients:chatbot_start", args=[patient_id]),
     }
     return render(request, "patients/patient_main.html", context)
-
 
 @login_required
 def dosing_calendar(request, patient_id):
@@ -191,7 +199,7 @@ def mypage(request, patient_id):
         patient.is_pregnant = request.POST.get("is_pregnant") == "on"
 
         conditions = request.POST.getlist("conditions")
-        allergies = request.POST.getlist("allergies")
+        # allergies = request.POST.getlist("allergies")
         etc = request.POST.get("etc", "").strip()
 
         notes = []
@@ -199,8 +207,8 @@ def mypage(request, patient_id):
         if conditions:
             notes.append(f"기저질환: {', '.join(conditions)}")
 
-        if allergies:
-            notes.append(f"알레르기: {', '.join(allergies)}")
+        # if allergies:
+        #     notes.append(f"알레르기: {', '.join(allergies)}")
 
         if etc:
             notes.append(f"기타: {etc}")
@@ -260,30 +268,10 @@ def chatbot_start(request, patient_id):
 
 
 # ------------------------------------------------------------------
-# 온보딩 (최초진입) — 명세서의 "최초진입" 구간 7화면
-#
-# [변경] 이제 실제로 전화번호+환자 고유코드로 Patient를 조회해서 인증한다 (더미 통과 아님).
-# [추가] 인증 성공 직후, DB에 저장된 건강정보(키/몸무게)가 이미 있는지로 분기한다.
-#   - 이미 있음(재로그인/기존 환자)  -> 건강정보 입력 화면들을 건너뛰고 바로 로그인 후 메인으로
-#   - 아직 없음(최초 로그인/신규 환자) -> 기존 순서(로딩→확인→건강정보 기본→추가)대로 입력받음
-#
-# "건강정보가 있다"의 판단 기준은 별도 완료 플래그 컬럼을 추가하는 대신,
-# 실제 저장되는 값인 Patient.height_cm / weight_kg가 채워져 있는지로 본다
-# (아래 _has_health_info 참고). 이 두 값은 onboarding_health_basic에서 저장된다.
+# 온보딩 (최초진입) — 명세서의 "최초진입" -- 7단계
 # ------------------------------------------------------------------
 
-
-def _has_health_info(patient):
-    """[추가] DB 기준으로 이 환자가 건강정보(키/몸무게)를 이미 입력했는지 판단.
-    별도 '완료 여부' 컬럼을 두지 않고, 건강정보 입력 화면(health_basic)에서
-    실제로 저장하는 키/몸무게가 둘 다 채워져 있는지로 판단한다."""
-    return patient.height_cm is not None and patient.weight_kg is not None
-
-
-def _get_onboarding_patient_id(request):
-    """온보딩 인증 단계(onboarding_hospital_auth)에서 세션에 저장해둔
-    인증된 환자 id를 꺼낸다."""
-    return request.session.get("patient_id")
+# _DEMO_PATIENT_ID = "P-2009"
 
 
 def onboarding_start(request):
@@ -291,7 +279,7 @@ def onboarding_start(request):
 
 
 def onboarding_hospital_select(request):
-    from .models import Hospital
+    from .models import Hospital, Patient
     hospitals = Hospital.objects.all()
 
     if request.method == "POST":
@@ -301,6 +289,8 @@ def onboarding_hospital_select(request):
 
     return render(request, "patients/onboarding_hospital_select.html", {"hospitals": hospitals})
 
+
+from .models import Patient
 
 def onboarding_hospital_auth(request):
     from .models import Hospital
@@ -333,17 +323,6 @@ def onboarding_hospital_auth(request):
         # Session 저장
         request.session["patient_id"] = patient.patient_id
 
-        # ========== [추가] 여기가 핵심 분기 지점 ==========
-        # DB에 건강정보(키/몸무게)가 이미 있는 환자면 건강정보 입력 화면들을
-        # 전부 건너뛰고 바로 로그인 처리 후 메인 화면으로 이동시킨다.
-        if _has_health_info(patient):
-            login(request, patient.user)
-            request.session.pop("onboarding_hospital_code", None)
-            request.session.pop("patient_id", None)
-            return redirect("patients:main", patient_id=patient.patient_id)
-        # ========== [추가] 분기 끝 ==========
-
-        # 건강정보가 아직 없는 환자(최초 로그인) -> 기존 온보딩 순서 그대로 진행
         return redirect("patients:onboarding_loading")
 
     return render(
@@ -356,10 +335,10 @@ def onboarding_hospital_auth(request):
 
 
 def onboarding_loading(request):
-    from .models import Hospital
+    from .models import Hospital, Patient
 
     hospital_code = request.session.get("onboarding_hospital_code")
-    patient_id = _get_onboarding_patient_id(request)
+    patient_id = request.session.get("patient_id")
 
     selected_hospital = Hospital.objects.filter(
         hospital_code=hospital_code
@@ -376,10 +355,10 @@ def onboarding_loading(request):
     })
 
 def onboarding_info_confirm(request):
-    from .models import Hospital
+    from .models import Hospital, Patient
 
     hospital_code = request.session.get("onboarding_hospital_code")
-    patient_id = _get_onboarding_patient_id(request)
+    patient_id = request.session.get("patient_id")
 
     selected_hospital = Hospital.objects.filter(
         hospital_code=hospital_code
@@ -398,43 +377,114 @@ def onboarding_info_confirm(request):
         "selected_hospital": selected_hospital,
     })
 
-
 def onboarding_health_basic(request):
-    # [변경] 세션에 저장된 인증 환자를 조회해서 실제로 키/몸무게를 저장하도록 구현
-    # (기존엔 TODO만 있고 저장을 안 해서, 값을 입력해도 DB에는 안 남아 매번 다시
-    #  건강정보 입력 화면으로 오게 되는 문제가 있었다)
-    patient = get_object_or_404(Patient, patient_id=_get_onboarding_patient_id(request))
-
+    patient_id = request.session.get("patient_id")
+    if not patient_id:
+        return redirect("patients:onboarding_start")
+    patient = get_object_or_404(Patient, patient_id=patient_id)
     if request.method == "POST":
-        # ========== [추가] 키/몸무게를 실제 Patient에 저장 ==========
-        height_cm = request.POST.get("height_cm")
-        weight_kg = request.POST.get("weight_kg")
-        if height_cm:
-            patient.height_cm = height_cm
-        if weight_kg:
-            patient.weight_kg = weight_kg
+        height = request.POST.get("height_cm")
+        weight = request.POST.get("weight_kg")
+        sleep_time = request.POST.get("sleep_time")
+        wake_time = request.POST.get("wake_time")
+        eating_habit = request.POST.get("eating_habit")
+
+        if height:
+            patient.height_cm = Decimal(height)
+        if weight:
+            patient.weight_kg = Decimal(weight)
+        if sleep_time:
+            patient.average_sleep_time = datetime.strptime(sleep_time, "%H:%M").time()
+        if wake_time:
+            patient.average_wake_time = datetime.strptime(wake_time, "%H:%M").time()
+        if eating_habit:
+            patient.meal_pattern = eating_habit
+        patient.is_smoker = request.POST.get("is_smoking") == "on"
         patient.save()
-        # ========== [추가] 끝 ==========
         return redirect("patients:onboarding_health_additional")
+    
     return render(request, "patients/onboarding_health_basic.html")
 
 
+from django.contrib.auth import login
+from django.shortcuts import get_object_or_404, redirect, render
+
+# def onboarding_health_additional(request):
+#     patient_id = request.session.get("patient_id")
+
+#     if not patient_id:
+#         return redirect("patients:onboarding_start")
+
+#     patient = get_object_or_404(
+#         Patient,
+#         patient_id=patient_id
+#     )
+
+#     if request.method == "POST":
+#         # TODO: 기저질환/알레르기/임신 여부 저장
+
+#         login(request, patient.user)
+
+#         request.session.pop("onboarding_hospital_code", None)
+#         request.session.pop("patient_id", None)
+
+#         return redirect("patients:main", patient_id=patient.patient_id)
+
+#     return render(
+#         request,
+#         "patients/onboarding_health_additional.html",
+#         {
+#             "patient": patient
+#         }
+#     )
+
 def onboarding_health_additional(request):
-    # [변경] 정의되지 않은 _DEMO_PATIENT_ID를 참조하던 버그 수정.
-    # 세션에 저장해둔 실제 인증 환자 id를 사용한다.
-    patient = get_object_or_404(Patient, patient_id=_get_onboarding_patient_id(request))
+    """추가 건강 정보(기저질환, 임신 여부) 입력 및 온보딩 완료 뷰"""
+    patient_id = request.session.get("patient_id")
+
+    if not patient_id:
+        return redirect("patients:onboarding_start")
+
+    patient = get_object_or_404(Patient, patient_id=patient_id)
 
     if request.method == "POST":
-        # ========== [추가] 임신 여부 저장 (여성 환자에게만 폼에 노출됨) ==========
-        if patient.gender == "F":
-            patient.is_pregnant = request.POST.get("is_pregnant") == "on"
-            patient.save()
-        # 기저질환(conditions)은 코드가 아니라 한글명이 그대로 넘어오고 있어
-        # 별도 정리가 필요함 -> 기존 TODO 그대로 유지 (이번 작업 범위 밖)
+        # 임신 체크 시 1, 미체크 시 0
+        patient.is_pregnant = 1 if request.POST.get("is_pregnant") == "on" else 0
 
-        login(request, patient.user)  # 온보딩(=건강정보 입력) 완료 -> 로그인 처리
+        # 기저질환 처리
+        conditions = request.POST.getlist("conditions")
+        condition_etc = request.POST.get("condition_etc", "").strip()
+
+        # '기타' 선택 시 직접 입력한 텍스트로 대체
+        if "기타" in conditions:
+            conditions.remove("기타")
+            if condition_etc:
+                conditions.append(condition_etc)
+
+        # 수집된 기저질환 정보를 Patient.note 텍스트 필드에 기록
+        if conditions:
+            formatted_conditions = f"기저질환: {', '.join(conditions)}"
+            if patient.note:
+                patient.note = f"{patient.note}\n{formatted_conditions}"
+            else:
+                patient.note = formatted_conditions
+
+        # MySQL DB 저장
+        patient.save()
+
+        # 회원 인증 및 세션 로그인 처리
+        login(request, patient.user)
+
+        # 온보딩 세션 임시 데이터 정리
         request.session.pop("onboarding_hospital_code", None)
-        request.session.pop("patient_id", None)  # [추가] 온보딩용 임시 세션 값 정리
+        request.session.pop("patient_id", None)
+
         return redirect("patients:main", patient_id=patient.patient_id)
 
-    return render(request, "patients/onboarding_health_additional.html", {"patient": patient})
+    return render(
+        request,
+        "patients/onboarding_health_additional.html",
+        {
+            "patient": patient,
+        },
+    )
