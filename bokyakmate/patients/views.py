@@ -287,19 +287,35 @@ def chat_history(request, patient_id):
         "main_url": reverse("patients:main", args=[patient_id]),
     })
 
-
 @login_required
 def chatbot_start(request, patient_id):
     patient = get_object_or_404(Patient, patient_id=patient_id)
-
-    thread_id = f"patient-{patient_id}"
-    config = {"configurable": {"thread_id": thread_id}}
     graph = build_graph()
-    current_state = graph.get_state(config) 
+    
+    chat_session = ChatSession.objects.filter(
+        patient=patient,
+        status="active"
+    ).first()
+        
+    if chat_session is None:
+        chat_session = ChatSession.objects.create(
+            patient=patient,
+            status="active"
+        )
+        
+    thread_id = str(chat_session.session_id)
+    
+    config = {
+        "configurable": {
+            "thread_id": thread_id
+        }
+    }
+
 
     if request.method == "POST":
         try:
             data = json.loads(request.body)
+            current_state = graph.get_state(config)
             user_message = data.get("user_input", "")
             
             if not current_state.values:
@@ -331,6 +347,7 @@ def chatbot_start(request, patient_id):
 
     # GET 요청: 여기서 current_state를 안전하게 부를 수 있습니다.
     messages = []
+    current_state = graph.get_state(config)
     if current_state.values and "messages" in current_state.values:
         for msg in current_state.values["messages"]:
             # ★ 수정할 부분: 과거 메시지가 딕셔너리일 때와 객체일 때 모두 안전하게 꺼내기
@@ -352,6 +369,32 @@ def chatbot_start(request, patient_id):
         "messages": messages,
         "main_url": reverse("patients:main", args=[patient_id]),
     })
+    
+    login_required
+def chatbot_end(request, patient_id):
+
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    patient = get_object_or_404(Patient, patient_id=patient_id)
+
+    chat_session = ChatSession.objects.filter(
+        patient=patient,
+        status="active"
+    ).first()
+
+    if chat_session is None:
+        return JsonResponse({"success": True})
+
+    chat_session.status = "closed"
+    chat_session.ended_at = timezone.now()
+
+    # 나중에 LangGraph 요약 붙일 예정
+    # chat_session.summary = summary
+
+    chat_session.save()
+
+    return JsonResponse({"success": True})
 
 # ------------------------------------------------------------------
 # 온보딩 (최초진입) — 명세서의 "최초진입" -- 7단계

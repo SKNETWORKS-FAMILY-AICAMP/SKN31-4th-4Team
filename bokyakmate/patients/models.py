@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from datetime import date
+import uuid
 
 
 # =========================
@@ -277,23 +278,61 @@ class ChatSession(models.Model):
         ("일반질문", "일반질문"),
     ]
 
-    patient = models.ForeignKey(
-        Patient,
-        on_delete=models.CASCADE
+    STATUS = [
+        ("active", "진행중"),
+        ("closed", "종료"),
+    ]
+
+    # 상담(Session)의 고유 ID
+    # LangGraph의 thread_id로 그대로 사용
+    session_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
     )
 
-    intent = models.CharField(max_length=10, choices=INTENT)
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name="chat_sessions"
+    )
 
-    started_at = models.DateTimeField()
+    # 최초 질문 기준 상담 유형
+    intent = models.CharField(
+        max_length=10,
+        choices=INTENT,
+        blank=True
+    )
 
+    # 상담 시작 시각
+    started_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    # 상담 종료 시각
     ended_at = models.DateTimeField(
         null=True,
         blank=True
     )
 
+    # 상담 상태
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS,
+        default="active"
+    )
+
+    # 상담 종료 후 LLM 요약
+    summary = models.TextField(
+        blank=True
+    )
+
     class Meta:
         db_table = "chat_session"
+        ordering = ["-started_at"]
 
+    def __str__(self):
+        return f"{self.patient.patient_id} - {self.session_id}"
 
 # =========================
 # Symptom Log

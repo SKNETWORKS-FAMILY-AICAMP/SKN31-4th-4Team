@@ -12,7 +12,7 @@
 
 <div class="phone">
     <div class="subpage-header">
-        <a href="{{ main_url }}">←</a>
+        <button type="button" id="chat-exit-btn" class="back-btn">←</button>
         <h1>복약메이트와 상담하기</h1>
     </div>
 
@@ -104,10 +104,34 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('chat-form');
     const input = document.getElementById('user-input');
     const chatBody = document.getElementById('chat-body');
-
+    const exitBtn = document.getElementById("chat-exit-btn");
     document.querySelectorAll('.markdown-body').forEach(el => {
     el.innerHTML = md.render(el.textContent);
     });
+
+    exitBtn.addEventListener("click", async function (e) {
+    e.preventDefault();
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    try {
+        const response = await fetch("{% url 'patients:chatbot_end' patient.patient_id %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrfToken
+            }
+        });
+
+        if (!response.ok) {
+            console.error("상담 종료 실패");
+        }
+
+    } catch (err) {
+        console.error(err);
+    }
+
+    window.location.href = "{{ main_url }}";
+}   );
 
     form.addEventListener('submit', function(e) {
         e.preventDefault(); 
