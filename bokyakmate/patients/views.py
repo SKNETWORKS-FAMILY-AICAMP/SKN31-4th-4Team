@@ -191,7 +191,7 @@ def records(request, patient_id):
 
     prescriptions = (
         Prescription.objects.filter(patient=patient)
-        .select_related("hospital")           
+        .select_related("hospital", "doctor")           
         .prefetch_related("details__drug")
         .order_by("-prescribed_at")
     )
