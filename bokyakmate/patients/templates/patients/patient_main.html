@@ -28,7 +28,7 @@
         </div>
     </div>
 
-    <div class="body">
+    <div class="body scroll-body" style="overflow-y: auto;">
 
         {# ===== 오늘의 복약 위젯 ===== #}
         {# today_doses: [{id, drug_name, scheduled_time, checked, missed}, ...] #}
@@ -83,13 +83,13 @@
             {% endfor %}
         </div>
     </div>
-
+    <div>
+        {% bottom_nav "home" %}
+    </div>
     <div class="chat-fab-wrap">
         <button class="chat-fab" onclick="location.href='{{ chatbot_url }}'">💬</button>
         <div class="chat-fab-label">복약메이트에게 물어보기</div>
     </div>
-
-    {% bottom_nav "home" %}
 
     {# ===== 복용 완료 확인 바텀시트 — show_bottom_sheet=True 일 때만 (복약체크 직후) ===== #}
     {% if show_bottom_sheet %}
@@ -111,6 +111,7 @@
     {% if show_toast %}
     <div class="toast">복용 기록이 저장되었습니다</div>
     {% endif %}
+  
 </div>
 
 </body>
