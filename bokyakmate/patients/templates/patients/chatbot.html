@@ -54,7 +54,7 @@
             {% for msg in messages %}
                 <div class="msg-row {{ msg.role }}">
                     {% if msg.role == "assistant" %}<div class="msg-avatar">🩺</div>{% endif %}
-                    <div class="msg-bubble markdown-body">{{ msg.content|linebreaksbr }}</div>
+                    <div class="msg-bubble markdown-body">{{ msg.content }}</div>
                     {% if msg.role == "patient" %}<div class="msg-avatar">🧑</div>{% endif %}
                 </div>
 
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // --------------------------------------------------
     // 화면에 말풍선을 그려주는 도우미 함수들
     // --------------------------------------------------
-    function appeqndMyMessage(text) {
+    function appendMyMessage(text) {
         // 기존 HTML 디자인을 그대로 가져와서 텍스트만 쏙 끼워 넣습니다.
         const html = `
             <div class="msg-row patient">
@@ -163,6 +163,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function appendAiMessage(text) {
+        // 혹시 \n이 문자열로 넘어오는 경우 실제 개행으로 변환
+        text = text.replace(/\\n/g, "\n");
+
         const html = `
             <div class="msg-row assistant">
                 <div class="msg-avatar">🩺</div>
@@ -174,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
         chatBody.insertAdjacentHTML('beforeend', html);
         scrollToBottom();
     }
-    
+
     // 채팅이 길어지면 스크롤을 맨 아래로 내려주는 함수
     function scrollToBottom() {
         chatBody.scrollTop = chatBody.scrollHeight;
