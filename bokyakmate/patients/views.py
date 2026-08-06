@@ -39,37 +39,67 @@ def _check_owner(request, patient_id):
     return request.user.is_authenticated and getattr(request.user, "patient_profile", None) \
         and request.user.Patient.patient_id == patient_id
 
-
 @login_required
 def patient_main(request, patient_id):
     patient = get_object_or_404(Patient, patient_id=patient_id)
 
+    # 1. 템플릿에 넘길 current_drug 초기화 (처방 내역이 없을 때 에러 방지)
+    current_drug = None
+    drug_codes = set()
+
     latest_prescription = (
         Prescription.objects.filter(patient=patient)
-        .prefetch_related("details__drug")
+        .prefetch_related("details")
         .first()
     )
-    current_drug = None
+
     if latest_prescription:
         for detail in latest_prescription.details.all():
-            try:
-                current_drug = detail.drug
+            if detail.drug_id:
+                # 템플릿의 {{ current_drug.drug_name }} 을 지원하기 위해 딕셔너리로 생성
+                current_drug = {"drug_id": detail.drug_id, "drug_name": "알 수 없는 약"}
+                drug_codes.add(str(detail.drug_id))
                 break
-            except ObjectDoesNotExist:
-                continue  # 깨진 FK는 건너뜀
 
     recent_chats = ChatSession.objects.filter(patient=patient)[:3]
 
     today = timezone.localdate()
-    todays_logs = DosingLog.objects.filter(patient=patient, scheduled_at__date=today) \
-        .select_related("prescription_detail__drug")
+    
+    # 2. 캘린더와 동일하게 타임존(Timezone) 문제 방지를 위해 시간 범위(Range)로 조회
+    start_of_day = timezone.make_aware(datetime.combine(today, time.min))
+    end_of_day = timezone.make_aware(datetime.combine(today, time.max))
 
+    todays_logs = list(
+        DosingLog.objects.filter(
+            patient=patient, 
+            scheduled_at__gte=start_of_day,
+            scheduled_at__lte=end_of_day
+        ).select_related("prescription_detail")
+    )
+
+    # 오늘의 복약 리스트에서도 drug_id 수집
+    for log in todays_logs:
+        if log.prescription_detail and log.prescription_detail.drug_id:
+            drug_codes.add(str(log.prescription_detail.drug_id))
+
+    # 3. 수집한 모든 drug_id(문자열)로 Neo4j에서 한 번에 조회
+    neo4j_drugs = get_neo4j_drug_details(list(drug_codes)) if drug_codes else {}
+
+    # 4. 조회한 Neo4j 데이터를 current_drug에 매핑
+    if current_drug:
+        code = str(current_drug["drug_id"])
+        neo4j_info = neo4j_drugs.get(code, {})
+        current_drug["drug_name"] = neo4j_info.get("name") or "약 이름 정보 없음"
+
+    # 5. 조회한 Neo4j 데이터를 오늘의 복약 리스트(today_doses)에 매핑
     today_doses = []
     for log in todays_logs:
-        try:
-            drug_name = log.prescription_detail.drug.drug_name
-        except ObjectDoesNotExist:
-            drug_name = "알 수 없는 약"
+        drug_name = "알 수 없는 약"
+        if log.prescription_detail and log.prescription_detail.drug_id:
+            code = str(log.prescription_detail.drug_id)
+            neo4j_info = neo4j_drugs.get(code, {})
+            drug_name = neo4j_info.get("name") or "약 이름 정보 없음"
+
         today_doses.append({
             "id": log.id,
             "drug_name": drug_name,
