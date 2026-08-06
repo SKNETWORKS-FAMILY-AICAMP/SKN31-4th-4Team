@@ -47,7 +47,7 @@ def load_patient_info(conn, patient_id: str) -> dict:
         (patient_id,),
     )
     presc_row = cur.fetchone()
- 
+    product_codes= []
     ingredient_codes = []
     drug_names = []
     if presc_row:
@@ -71,7 +71,7 @@ def load_patient_info(conn, patient_id: str) -> dict:
             
             drug_name = detail.get("drug_name") if detail else None
             ingredient_code = detail.get("content_code") if detail else None
-            
+            product_codes.append(product_code)
             ingredient_codes.append(ingredient_code)
             drug_names.append(drug_name)
  
@@ -81,10 +81,9 @@ def load_patient_info(conn, patient_id: str) -> dict:
         "age": calc_age(birth_date),
         "gender": gender,
         "is_pregnant": bool(is_pregnant),
-        "ingredient_code": ingredient_codes[0] if ingredient_codes else None,
-        "drug": drug_names[0] if drug_names else None,
         "ingredient_codes": ingredient_codes,  # 다중 약 대응을 위해 참고용으로 같이 실어둠
         "drugs": drug_names,
+        "product_codes":product_codes,
     }
 
 

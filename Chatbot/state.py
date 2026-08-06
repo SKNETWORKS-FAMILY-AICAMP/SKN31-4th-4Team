@@ -32,7 +32,8 @@ class State(TypedDict):
     sufficient_info: bool
     system_signal: Optional[str]
     end_signal: Optional[str]
-
+    prohibited_medicine: None
+    need_prohibited_check: bool
 
 class ChatRequest(BaseModel):
     query: str

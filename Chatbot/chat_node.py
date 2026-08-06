@@ -4,6 +4,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, RemoveMessage, AIMessage
 from .state import State
 from .qdrant_loader import retriever
+from tools.drug_db_tools import list_drug_contraindications
 from datetime import datetime, date
 
 # 환경 변수 로드
@@ -15,7 +16,7 @@ llm = ChatOpenAI(model="gpt-5.4-mini")
 
 class RouteResult(BaseModel):
     need_medicine: bool = Field(
-        description="약에 대한 정보 조회가 필요한지 알려줘"
+        description="약에 대한 부작용, 효능 효과 정보 조회가 필요한지 알려줘. "
     )
 
 class FollowupRouteResult(BaseModel):
@@ -26,16 +27,22 @@ class FollowupRouteResult(BaseModel):
         description="지금까지의 대화 내역으로 부작용 문진에 필요한 정보가 충분히 모였다고 판단되면 True"
     )
 
+class ProhibitedRouteResult(BaseModel):
+    need_prohibited_check: bool = Field(
+        description="사용자가 현재 복용 중인 약과 병용 금기(같이 먹으면 안 되는 약)를 묻고 있는지 여부"
+    )
+
 # Structured Output 적용
 router_llm = llm.with_structured_output(RouteResult)
 followup_router_llm = llm.with_structured_output(FollowupRouteResult, method="function_calling")
+prohibited_router_llm = llm.with_structured_output(ProhibitedRouteResult, method="function_calling")
 
 
 # state 확인 후 약정보 조회 노드 및 일반 채팅 노드 분기
 def router(state: State):
     if state.get("need_medicine"):
         return "medicine_node"
-    return "general_chat_node"
+    return "prohibited_router_node"
 
 
 # 외부 시스템(타임아웃 스캐너, 앱 종료 감지 등)이 심어주는 신호. 사용자 메시지 없이도 트리거.
@@ -58,8 +65,13 @@ def followup_router(state: State):
         return "symptom_summary_node"
     if state.get("symptom_followup"):
         return "side_effect_followup_node"
-    return "general_chat_node"
+    return "prohibited_router_node"
 
+# 일반 대화 및 병용 금기 조회 및 대답 노드 분기.
+def prohibited_router(state: State):
+    if state.get("Prohibited_medicine"):
+        return "prohibited_medicine_node"
+    return "general_chat_node"
 
 # 약 정보가 필요한지 판단하는 노드
 def chat_node(state: State):
@@ -72,6 +84,8 @@ def chat_node(state: State):
     다음은 need_medicine=False로 판단한다:
     - 이전 답변 내용을 표/목록 등 다른 형식으로 정리해달라는 요청
     - 단순 인사, 감사 표현, 잡담
+    - 같이 먹으면 안돼는 약에 대한 정보를 요구 하는 경우.
+    - 복용중인 약이 아닌 다른 약의 이름을 적은 경우.
     - 약과 무관한 일반 질문
     """
 
@@ -81,6 +95,41 @@ def chat_node(state: State):
     return {
         "need_medicine": result.need_medicine,
     }
+
+# 일반의약품 병용 금기 질문인지 판단하는 노드
+def prohibited_router_node(state: State):
+    PROHIBITED_ROUTER_SYSTEM_PROMPT = """
+    사용자가 방금 한 말이 다음에 해당하면 need_prohibited_check=True로 판단한다:
+    - 같이 먹으면 안 되는 약을 물어보는 경우
+    - 현재 복용 중인 약이 아닌 다른 약의 이름을 명시하며 병용 가능 여부를 묻는 경우
+
+    그 외에는 need_prohibited_check=False로 판단한다.
+    """
+    result = prohibited_router_llm.invoke(
+        [SystemMessage(content=PROHIBITED_ROUTER_SYSTEM_PROMPT)] + state["messages"]
+    )
+    return {
+        "need_prohibited_check": result.need_prohibited_check,
+    }
+
+# 환자가 복용 중인 약들의 병용 금기 성분을 조회하는 노드
+def prohibited_medicine_node(state: State):
+    drugs = state["patient_info"].get("drugs") or []
+    product_codes = state["patient_info"].get("product_codes") or []
+
+    prohibited_medicine = []
+    for i, product_code in enumerate(product_codes):
+        conflicts = list_drug_contraindications(product_code)
+        for c in conflicts:
+            prohibited_medicine.append({
+                "drug": drugs[i] if i < len(drugs) else None,
+                **c,
+            })
+
+    return {
+        "prohibited_medicine": prohibited_medicine,
+    }
+    
 
 
 # 세션 종료 확인 시 안내 메시지를 보내고 마무리하는 노드
@@ -108,7 +157,7 @@ def symptom_summary_node(state: State):
     조회된 부작용 정보: {state.get('medicine_side_effect')}
     과거 부작용 기록: {state.get("past_side_effect_summaries")}
     
-    약물 부작용 분석 어시스턴트로서, 지금까지 확인한 내용을 종합해서 요약 안내한다. 증상과 관련된 내용이 아닌건 안내하지 않는다.
+    당신은 약물 부작용 분석 어시스턴트다.
     복용 중인 약이 2개 이상이면, 확인된 증상/부작용을 가능한 한 관련된 약별로 구분해서 요약한다. 특정 약과 명확히 연결 짓기 어려운 내용은 구분 없이 안내한다.
     과거 부작용 기록 중 이번과 관련된 이력(특히 과거 severity)이 있으면 위험성 판단에 참고한다.
     이어서 위 내용을 근거로 병원에 당장 방문해야 하는 수준인지 위험성을 판단해서 안내하고 대화를 마무리한다.
@@ -135,10 +184,11 @@ def followup_gate_node(state: State):
     - 이전 답변 내용을 표/목록 등 다른 형식으로 정리해달라는 요청 (형식 변경 요청은 문진 이탈이 아니다)
     
     다음은 need_followup=False로 판단한다:
-    - 문진과 무관한 화제로 전환하는 경우
+    - 증상과 무관한 화제로 전환하는 경우
+    - 갑작스럽더라도 사용자가 일반적인 대화를 하고자 하는 경우.
 
-    sufficient_info는 need_followup 여부와 별개로, 2~3번은 꼭 추가로 물어보고 이후 지금까지 오간 대화로 증상 양상/경과를 판단할 수 있을거 같다면
-    True로 판단한다.
+    sufficient_info는 need_followup 여부와 별개로 증상에 대해 ai가 2~3번정도  추가로 물어본 내역을 확인 후 판단한다. 
+    지금까지 오간 대화로 증상 양상/경과를 판단할 수 있을거 같다면 True로 판단한다.
     """
 
     result = followup_router_llm.invoke(
@@ -293,7 +343,7 @@ def side_effect_followup_node(state: State):
         조회된 부작용 정보: {medicine_side_effect}
         과거 부작용 기록: {state.get("past_side_effect_summaries")}
 
-        약물 부작용 분석 어시스턴트로서, 지금까지 확인한 내용을 종합해서 요약 안내한다. 증상과 관련한 내용이 아닌건 안내하지 않는다.
+        당신은 약물 부작용 분석 어시스턴트다.
         복용 중인 약이 2개 이상이면, 확인된 증상/부작용을 가능한 한 관련된 약별로 구분해서 요약한다. 특정 약과 명확히 연결 짓기 어려운 내용은 구분 없이 안내한다.
         과거 부작용 기록 중 이번과 관련된 이력(특히 과거 severity)이 있으면 위험성 판단에 참고한다.
         이어서 위 내용을 근거로 병원에 당장 방문해야 하는 수준인지 위험성을 판단해서 안내하고 대화를 마무리한다.
@@ -326,6 +376,7 @@ def side_effect_followup_node(state: State):
     1. 인과성에 대한 최종 판단(약 때문인지 아닌지)은 하지 않고 이와 관련된 답변도 하지 않는다.
     2. 이미 물어본 내용은 다시 묻지 않는다.
     3. 추가 질문은 2~3개 정도만 물어본다.
+    4. 물어 본 횟수가 늘어날 수록 추가 질문 갯수를 점점 줄여나간다.
     """
     response = llm.invoke(prompt)
     return {
@@ -357,6 +408,32 @@ def general_chat_node(state: State):
     # Constraints
     1. 일반적인 잡담이라고 판단 될 경우 자연스럽게 대화를 이어 간다.
     2. 구체적인 약물/부작용 관련 질문이 다시 나오면, 답변하지 말고 그 부분을 다시 문의해달라고 자연스럽게 안내한다.
+    3. 답변은 간결하게 한다.
+    """
+    response = llm.invoke(prompt)
+    return {"messages": [response]}
+
+# 병용금기 대답 노드
+def prohibited_chat_node(state: State):
+    patient_info = state.get("patient_info") or {}
+    
+    prompt = f"""
+    # Context
+    - 환자 정보
+        - 이름: {patient_info.get('name')}
+        - 나이: {patient_info.get('age')}
+        - 성별: {patient_info.get('gender')}
+        - 임신 여부: {patient_info.get('is_pregnant')}
+        - 복용 중인 약: {patient_info.get('drugs')}
+    - 전체 대화 이력: {state.get("messages", [])}
+    - 병용금기 내역: {state.get("prohibited_medicine")}
+
+    # Role
+    당신은 환자의 복약/부작용 상담을 돕는 어시스턴트다.
+
+    # Constraints
+    1. 병용금기 내역을 조회 후 답변한다.
+    2. 병용 금기 내역에 없을경우 먹어도 된다고 판단한다.
     3. 답변은 간결하게 한다.
     """
     response = llm.invoke(prompt)
