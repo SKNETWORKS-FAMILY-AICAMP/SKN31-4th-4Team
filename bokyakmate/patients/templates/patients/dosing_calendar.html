@@ -71,12 +71,32 @@
                             <div class="time">{{ log.scheduled_at|date:"H:i" }} 예정</div>
                         </div>
                         {% if log.status == "done" %}
-                            <span class="dose-btn done">✓ 복용완료</span>
-                        {% else %}
-                            <form method="post" action="{% url 'patients:mark_dose_taken' patient.patient_id log.id %}?date={{ selected_date|date:'Y-m-d' }}">
-                                {% csrf_token %}
-                                <button type="submit" class="dose-btn todo">복용했어요</button>
-                            </form>
+
+                        <span class="dose-btn done">
+                            ✓ 복용완료
+                        </span>
+
+                        {% elif log.status == "missed" %}
+
+                        <span class="dose-btn missed">
+                            복용시간 경과
+                        </span>
+
+                        {% elif log.is_future %}
+
+                        <span class="dose-btn future">
+                            복용예정
+                        </span>
+
+                        {% elif log.can_take %}
+
+                        <form method="post" action="{% url 'patients:mark_dose_taken' patient.patient_id log.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="dose-btn todo">
+                                복용했어요
+                            </button>
+                        </form>
+
                         {% endif %}
                     </div>
                 {% empty %}

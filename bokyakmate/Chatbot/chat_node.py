@@ -109,6 +109,16 @@ def symptom_summary_node(state: State):
     patient_info = state.get("patient_info") or {}
     
     closing_prompt = f"""
+    - 환자 정보
+        - 이름: {state['patient_info']['name']}
+        - 나이: {state['patient_info']['age']}
+        - 성별: {state['patient_info']['gender']}
+        - 임신 여부: {state['patient_info']['is_pregnant']}
+        - 흡연 여부: {state['patient_info']['is_smoker']}
+        - 잠드는 시간: {state['patient_info']['average_sleep_time']}
+        - 일어나는 시간: {state['patient_info']['average_wake_time']}
+        - 식사 패턴: {state['patient_info']['meal_pattern']}
+        
     지금까지 확인된 내용
     - 문진 응답 내역: {checked}
     복용 중인 약: {patient_info.get('drugs')}
@@ -145,8 +155,8 @@ def followup_gate_node(state: State):
     - 증상과 무관한 화제로 전환하는 경우
     - 갑작스럽더라도 사용자가 일반적인 대화를 하고자 하는 경우.
 
-    sufficient_info는 need_followup 여부와 별개로 증상에 대해 ai가 2~3번정도  추가로 물어본 내역을 확인 후 판단한다. 
-    지금까지 오간 대화로 증상 양상/경과를 판단할 수 있을거 같다면 True로 판단한다.
+    sufficient_info는 need_followup 여부와 별개로 증상에 대해 추가로 물어본 내역을 확인 후 판단한다. 
+    지금까지 오간 대화로 증상 양상/경과를 판단할 수 있을거 같다면 sufficient_info= True로 판단한다.
     """
 
     result = followup_router_llm.invoke(
@@ -245,10 +255,14 @@ def side_effect_node(state: State):
     - 복용 후 경과 시간: {state.get("hours_since_dose")}시간
     - 과거 부작용 기록: {state.get("past_side_effect_summaries")}
     - 환자 정보
-        - 이름: {patient_info.get('name')}
-        - 나이: {patient_info.get('age')}
-        - 성별: {patient_info.get('gender')}
-        - 임신 여부: {patient_info.get('is_pregnant')}
+        - 이름: {state['patient_info']['name']}
+        - 나이: {state['patient_info']['age']}
+        - 성별: {state['patient_info']['gender']}
+        - 임신 여부: {state['patient_info']['is_pregnant']}
+        - 흡연 여부: {state['patient_info']['is_smoker']}
+        - 잠드는 시간: {state['patient_info']['average_sleep_time']}
+        - 일어나는 시간: {state['patient_info']['average_wake_time']}
+        - 식사 패턴: {state['patient_info']['meal_pattern']}
 
     Role
     당신은 환자의 증상을 묻는 문진 어시스턴트다.
@@ -297,6 +311,15 @@ def side_effect_followup_node(state: State):
 
     if is_last:
         closing_prompt = f"""
+        - 환자 정보
+            - 이름: {state['patient_info']['name']}
+            - 나이: {state['patient_info']['age']}
+            - 성별: {state['patient_info']['gender']}
+            - 임신 여부: {state['patient_info']['is_pregnant']}
+            - 흡연 여부: {state['patient_info']['is_smoker']}
+            - 잠드는 시간: {state['patient_info']['average_sleep_time']}
+            - 일어나는 시간: {state['patient_info']['average_wake_time']}
+            - 식사 패턴: {state['patient_info']['meal_pattern']}
         지금까지 확인된 내용
         - 문진 응답 내역: {checked}
         복용 중인 약: {drugs}
@@ -337,9 +360,9 @@ def side_effect_followup_node(state: State):
     부작용 원인 파악에 도움이 될 만한 추가 질문을 자연스럽게 이어서 물어봐줘.
 
     # Constraints
-    1. 이미 물어본 증상과 비슷한 증상은 다시 물어보지 않는다.
+    1. 문진 응답 내역을 확인한 후 이미 물어본 증상과 비슷한 증상은 다시 물어보지 않는다.
     2. 인과성에 대한 최종 판단(약 때문인지 아닌지)은 하지 않고 이와 관련된 답변도 하지 않는다.
-    3. 약을 언제 먹었는지,약들을 같이 먹었는지, 약 먹고 부터 몇시간 뒤부터 아팠는지  등의 내용은 묻지 않는다.
+    3. 약을 언제 먹었는지,약들을 같이 먹었는지, 약 먹고 부터 몇시간 뒤부터 아팠는지등의 내용은 묻지 않는다.
     4. 추가 질문은 1~2개 정도만 물어본다.
     5. 간결하게 답변한다.
     """
@@ -351,42 +374,6 @@ def side_effect_followup_node(state: State):
         "symptom_followup": True,
     }
 
-# 병용금기 조회 함수
-@tool
-def check_interaction_with_my_drugs(state: State, asked_drug_name: str) -> dict:
-    """약에 대한 병용 금기 정보가 필요한 경우 사용한다. (예시: 타이레놀 먹어도 돼?) """
-    my_product_codes = state["patient_info"].get("product_codes") or []
-    interaction_tool = make_check_interaction_tool(state)
-
-    general_chat_llm = llm.bind_tools([
-        search_info_web,
-        interaction_tool,
-    ])
-    if not my_product_codes:
-        return {"found": False, "candidates": [], "interactions": []}
-
-    candidates = search_drug(asked_drug_name)
-    if not candidates:
-        return {"found": False, "candidates": [], "interactions": []}
-
-    interactions = []
-    for candidate in candidates:
-        asked_product_code = candidate["product_code"]
-        for my_code in my_product_codes:
-            result = check_drug_interaction(my_code, asked_product_code)
-            if result:
-                for r in result:
-                    interactions.append({
-                        "asked_product_code": asked_product_code,
-                        "asked_drug_name": candidate["name"],
-                        **r,
-                    })
-
-    return {
-        "found": True,
-        "candidates": candidates,
-        "interactions": interactions,
-    }
 
 # 일반 대화 채팅 노드
 def general_chat_node(state: State):
@@ -397,17 +384,23 @@ def general_chat_node(state: State):
         - 나이: {state['patient_info']['age']}
         - 성별: {state['patient_info']['gender']}
         - 임신 여부: {state['patient_info']['is_pregnant']}
+        - 흡연 여부: {state['patient_info']['is_smoker']}
+        - 잠드는 시간: {state['patient_info']['average_sleep_time']}
+        - 일어나는 시간: {state['patient_info']['average_wake_time']}
+        - 식사 패턴: {state['patient_info']['meal_pattern']}
         - 복용 중인 약: {state['patient_info'].get('drugs')}
     - 전체 대화 이력: {state["messages"]}
 
     # Role
     당신은 환자의 복약/부작용 상담을 돕는 어시스턴트다.
+    check_interaction_with_my_drugs를 사용 했을 경우 정보를 확인 했다는 멘트 이후 병용 금기 정보에 따라 먹으면 위험하다는 느낌으로 답변한다.
 
     # Constraints
     1. 일반적인 잡담이라고 판단 될 경우 자연스럽게 대화를 이어 간다.
     2. 구체적인 약물/부작용 관련 질문이 다시 나오면, 답변하지 말고 그 부분을 다시 문의해달라고 자연스럽게 안내한다.
     3. 최신 정보나 사실 확인이 필요한 질문(오늘 날씨, 최근 뉴스, 일반 상식 등)이면 search_info_web 도구를 사용한다.
-    4. 답변은 간결하게 한다.
+    4. 약의 이름을 물으며 먹어도 돼냐고 물을경우 check_interaction_with_my_drugs 도구를 사용한다.
+    5. 답변은 간결하게 한다.
     """
 
     interaction_tool = make_check_interaction_tool(state)

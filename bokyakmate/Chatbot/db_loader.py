@@ -23,7 +23,7 @@ def load_patient_info(conn, patient_id: str) -> dict:
     # 1. 환자 기본 정보 조회
     cur.execute(
         """
-        SELECT name, birth_date, gender, is_pregnant
+        SELECT name, birth_date, gender, is_pregnant, is_smoker, average_sleep_time, average_wake_time, meal_pattern
         FROM patient
         WHERE patient_id = %s
         """,
@@ -37,7 +37,12 @@ def load_patient_info(conn, patient_id: str) -> dict:
     birth_date = row["birth_date"]
     gender = row["gender"]
     is_pregnant = row["is_pregnant"]
- 
+    is_smoker= row['is_smoker']
+    meal_pattern=row['meal_pattern']
+    average_wake_time=row['average_wake_time']
+    average_sleep_time=row['average_sleep_time']
+
+
     # 2. 가장 최근 처방 ID 조회
     cur.execute(
         """
@@ -87,6 +92,10 @@ def load_patient_info(conn, patient_id: str) -> dict:
         "ingredient_codes": ingredient_codes,  # 다중 약 대응을 위해 참고용으로 같이 실어둠
         "drugs": drug_names,
         "product_codes":product_codes,
+        "is_smoker":is_smoker,
+        "average_sleep_time": average_sleep_time,
+        "average_wake_time": average_wake_time,
+        "meal_pattern": meal_pattern
     }
 
 

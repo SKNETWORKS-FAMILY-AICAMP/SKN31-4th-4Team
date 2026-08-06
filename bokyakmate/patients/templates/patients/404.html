@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>페이지를 찾을 수 없어요 · 복약메이트</title>
+<style>
+    body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", sans-serif;
+        background: #EEF3F6;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 24px;
+    }
+    .error-card {
+        width: 100%;
+        max-width: 360px;
+        background: #FFFFFF;
+        border-radius: 24px;
+        padding: 40px 28px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(35, 49, 61, 0.12);
+    }
+    .error-icon { font-size: 44px; margin-bottom: 16px; }
+    .error-title { font-size: 18px; font-weight: 700; color: #23313D; margin: 0 0 8px; }
+    .error-desc { font-size: 14px; color: #7C8B96; line-height: 1.6; margin: 0 0 28px; }
+    .error-home-btn {
+        display: inline-block;
+        width: 100%;
+        padding: 13px 0;
+        border-radius: 14px;
+        background: #23313D;
+        color: #FFFFFF;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+    }
+</style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-icon">🔍</div>
+        <p class="error-title">페이지를 찾을 수 없어요</p>
+        <p class="error-desc">
+            주소가 바뀌었거나 삭제된 페이지일 수 있어요.<br>
+            주소를 다시 확인하시거나, 홈으로 돌아가주세요.
+        </p>
+        <a href="/" class="error-home-btn">홈으로 가기</a>
+    </div>
+</body>
+</html>

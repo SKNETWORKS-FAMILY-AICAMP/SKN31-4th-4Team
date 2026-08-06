@@ -717,29 +717,8 @@ body {
     font-weight: 600;
 }
 
-.dose-btn.future{
-    background:#f7e7b7;
-    color:#8b6b00;
-}
-
-.dose-btn.missed {
-    background: #fde2e2;
-    color: #d9534f;
-}
-
-.dose-btn.skipped {
-    background: #eeeeee;
-    color: #666666;
-}
-
-.summary-text::first-line {
-    color: var(--ink, #23313D);
-    font-weight: 600;
-}
-
 .chip-row {
     display: flex;
     flex-wrap: wrap; /* 👈 약이 많아지면 다음 줄로 자연스럽게 넘어가게 함 */
     gap: 8px; /* 칩 사이 간격 */
-    /* 기존 스타일 유지 */
-}
+    /* 기존 스타일 유지 */}
