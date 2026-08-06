@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib import messages
 
 
 from .models import (
@@ -169,8 +170,18 @@ def dosing_calendar(request, patient_id):
 
     # 자동 미복용 처리 (이번 달 전체)
     now = timezone.now()
+    today = timezone.localdate()
+
     for log in logs:
-        if log.status == "pending" and log.scheduled_at < now:
+        log_date = timezone.localtime(log.scheduled_at).date()
+
+        if log_date > today:
+            if log.status != "pending":
+                log.status = "pending"
+                log.taken_at = None
+                log.save(update_fields=["status", "taken_at"])
+
+        elif log.status == "pending" and log.scheduled_at < now:
             log.status = "missed"
             log.save(update_fields=["status"])
 
@@ -226,20 +237,19 @@ def dosing_calendar(request, patient_id):
     )
 
     for log in todays_logs:
-        if log.status == "pending" and log.scheduled_at < now:
+        log_date = timezone.localtime(log.scheduled_at).date()
+
+        # 오늘 이후의 복약은 항상 예정 상태
+        if log_date > today:
+            if log.status != "pending":
+                log.status = "pending"
+                log.taken_at = None
+                log.save(update_fields=["status", "taken_at"])
+
+        # 오늘 이전인데 아직 pending이면 missed 처리
+        elif log.status == "pending" and log.scheduled_at < now:
             log.status = "missed"
             log.save(update_fields=["status"])
-            
-    for log in todays_logs:
-        log.can_take = (
-            log.status == "pending"
-            and log.scheduled_at <= now
-        )
-
-        log.is_future = (
-            log.status == "pending"
-            and log.scheduled_at > now
-        )
 
     for log in todays_logs:
         log.can_take = (
@@ -299,10 +309,21 @@ def mark_dose_taken(request, patient_id, log_id):
     """복약 체크 액션 (POST) — 오늘의 복약 리스트에서 '복용했어요' 버튼.
     ?next=main 이면 홈으로, 없으면 기존처럼 캘린더로 돌아간다."""
     if request.method == "POST":
-        log = get_object_or_404(DosingLog, id=log_id, patient__patient_id=patient_id)
-        log.status = "done"
-        log.taken_at = timezone.now()
-        log.save()
+        log = get_object_or_404(
+            DosingLog,
+            id=log_id,
+            patient__patient_id=patient_id
+        )
+
+        now = timezone.now()
+
+        # 아직 복용 시간이 아닌 경우
+        if log.scheduled_at > now:
+            messages.error(request, "아직 복용 시간이 아닙니다.")
+        else:
+            log.status = "done"
+            log.taken_at = now
+            log.save()
  
     if request.GET.get("next") == "main":
         return redirect("patients:main", patient_id=patient_id)
