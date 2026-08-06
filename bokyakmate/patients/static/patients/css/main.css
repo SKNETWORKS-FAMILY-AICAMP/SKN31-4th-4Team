@@ -39,6 +39,7 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
+    height: 500px;
 }
 
 .header {
@@ -132,11 +133,11 @@ body {
 .subpage-header h1 { font-family: 'Gmarket Sans', sans-serif; font-size: 17px; margin: 0; font-weight: 500; }
 .subpage-body { padding: 20px; flex: 1; overflow-y: auto; height: 600px;
 }
-.mypage-nav-wrap {
+.nav-wrap {
         flex-shrink: 0;
         position: relative !important;
     }
-.mypage-nav-wrap > * {
+.nav-wrap > * {
         position: relative !important;
         bottom: auto !important;
         left: auto !important;

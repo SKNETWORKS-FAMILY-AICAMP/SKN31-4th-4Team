@@ -15,7 +15,7 @@
         <h1>복약 캘린더</h1>
     </div>
 
-    <div class="subpage-body">
+    <div class="subpage-body scroll-body">
         <div class="cal-nav">
             <a href="{{ prev_url }}">‹</a>
             <span class="cal-title">{{ year }}년 {{ month }}월</span>
@@ -111,8 +111,11 @@
 
             </div>
         </div>
-        {% bottom_nav "calendar" %}
+        
     </div>
+    <div class="nav-wrap">
+            {% bottom_nav "calendar" %}
+        </div>
 </div>
 
 </body>
