@@ -2,32 +2,32 @@
 
 {% block content %}
 
-<h2>{{ target_date }} 복약 일정</h2>
+<!-- 1. target_date를 selected_date로 변경 -->
+<h2>{{ selected_date|date:"Y년 m월 d일" }} 복약 일정</h2> 
 
-{% if logs %}
-
-    {% for log in logs %}
-
+<!-- 2. logs를 todays_logs로 변경 -->
+{% if todays_logs %}
+    {% for log in todays_logs %}
         <div class="card">
-
             <h4>{{ log.scheduled_at|time:"H:i" }}</h4>
-
-            <p>{{ log.prescription_detail.drug.drug_name }}</p>
-
+            
+            <!-- 참고: 뷰 코드에서 neo4j_info를 붙이셨다면 아래처럼 사용하실 수도 있습니다 -->
+            <!-- <p>{{ log.prescription_detail.neo4j_info.name | default:"약 이름 없음" }}</p> -->
+            
+            <p>{{ log.prescription_detail.neo4j_info.name | default:"약 이름 없음" }}</p>
             <p>{{ log.prescription_detail.drug.dosage }}</p>
-
-            <p>{{ log.status }}</p>
-
+            <p>
+                상태: 
+                {% if log.status == 'done' %}✅ 복용 완료
+                {% elif log.status == 'missed' %}❌ 미복용
+                {% else %}⏳ 예정
+                {% endif %}
+            </p>
         </div>
-
         <br>
-
     {% endfor %}
-
 {% else %}
-
     <p>복약 일정이 없습니다.</p>
-
 {% endif %}
 
 {% endblock %}

@@ -10,7 +10,6 @@
 </head>
 
 <body>
-
     <div class="phone">
         <div class="subpage-header">
             <a href="{{ main_url }}">←</a>
@@ -34,16 +33,17 @@
                 <div class="cal-dow">토</div>
 
                 {% for week in weeks %}
-                {% for cell in week %}
-                {% if cell %}
-                <a href="?year={{ year }}&month={{ month }}&date={{ cell.date|date:'Y-m-d' }}"
-                    class="cal-cell {% if cell.is_today %}today{% endif %} status-{{ cell.status }}">
-                    {{ cell.day }}
-                </a>
-                {% else %}
-                <div class="cal-cell"></div>
-                {% endif %}
-                {% endfor %}
+                    {% for cell in week %}
+                        {% if cell %}
+                            <!-- [추가됨] is_selected가 참일 때 'selected' 클래스 추가 -->
+                            <a href="?year={{ year }}&month={{ month }}&date={{ cell.date|date:'Y-m-d' }}"
+                               class="cal-cell {% if cell.is_today %}today{% endif %} {% if cell.is_selected %}selected{% endif %} status-{{ cell.status }}">
+                                {{ cell.day }}
+                            </a>
+                        {% else %}
+                            <div class="cal-cell"></div>
+                        {% endif %}
+                    {% endfor %}
                 {% endfor %}
             </div>
 
@@ -53,41 +53,34 @@
                 </p>
 
                 <div class="progress-area">
-
                     <div class="progress-text">
                         {{ done_count }} / {{ total_count }} 완료
                     </div>
-
                     <div class="progress-bar">
-
                         <div class="progress-fill" style="width: {{ progress }}%;"></div>
-
                     </div>
-
                     <div class="progress-percent">
                         {{ progress }}%
                     </div>
-
                 </div>
 
                 {% for log in todays_logs %}
-                <div class="dose-item">
-                    <div>
-                        <div class="name">{{ log.prescription_detail.drug.drug_name }}</div>
-                        <div class="time">{{ log.scheduled_at|date:"H:i" }} 예정</div>
+                    <div class="dose-item">
+                        <div>
+                            <div class="name">{{ log.prescription_detail.neo4j_info.name|default:"약 이름 정보 없음" }}</div>
+                            <div class="time">{{ log.scheduled_at|date:"H:i" }} 예정</div>
+                        </div>
+                        {% if log.status == "done" %}
+                            <span class="dose-btn done">✓ 복용완료</span>
+                        {% else %}
+                            <form method="post" action="{% url 'patients:mark_dose_taken' patient.patient_id log.id %}?date={{ selected_date|date:'Y-m-d' }}">
+                                {% csrf_token %}
+                                <button type="submit" class="dose-btn todo">복용했어요</button>
+                            </form>
+                        {% endif %}
                     </div>
-                    {% if log.status == "done" %}
-                    <span class="dose-btn done">✓ 복용완료</span>
-                    {% else %}
-                    <form method="post"
-                        action="{% url 'patients:mark_dose_taken' patient.patient_id log.id %}?date={{ selected_date|date:'Y-m-d' }}">
-                        {% csrf_token %}
-                        <button type="submit" class="dose-btn todo">복용했어요</button>
-                    </form>
-                    {% endif %}
-                </div>
                 {% empty %}
-                <div class="empty-state">오늘 예정된 복약이 없어요.</div>
+                    <div class="empty-state">해당 일자에 예정된 복약이 없어요.</div>
                 {% endfor %}
 
                 <div class="mypage-section">
@@ -128,7 +121,5 @@
             {% bottom_nav "calendar" %}
         </div>
     </div>
-
 </body>
-
 </html>
