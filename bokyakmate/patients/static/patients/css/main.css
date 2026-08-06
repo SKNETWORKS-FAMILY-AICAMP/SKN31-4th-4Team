@@ -561,3 +561,30 @@ body {
     0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
     30% { transform: translateY(-4px); opacity: 1; }
 }
+
+.scroll-body {
+    /* 스크롤 애니메이션 부드럽게 */
+    scroll-behavior: smooth;
+
+    /* Firefox용 */
+    scrollbar-width: thin;
+    scrollbar-color: #C9D6DE transparent;
+}
+
+/* Chrome, Safari, Edge (Webkit 계열) */
+.scroll-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scroll-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scroll-body::-webkit-scrollbar-thumb {
+    background-color: #C9D6DE;
+    border-radius: 10px;
+}
+
+.scroll-body::-webkit-scrollbar-thumb:hover {
+    background-color: #9CA9B4;
+}
