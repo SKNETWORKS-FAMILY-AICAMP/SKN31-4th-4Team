@@ -4,6 +4,7 @@ from datetime import date
 import uuid
 
 
+
 # =========================
 # Hospital
 # =========================
@@ -181,15 +182,10 @@ class Prescription(models.Model):
         db_column="hospital_code"
     )
 
-    doctor = models.ForeignKey(
-        Doctor,
-        on_delete=models.PROTECT,      
-        db_column="doc_id",
-        related_name="prescriptions",
-    )
-    
     prescribed_at = models.DateField()
+
     diagnosis = models.CharField(max_length=100, blank=True)
+
     note = models.TextField(blank=True)
 
     class Meta:

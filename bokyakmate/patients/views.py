@@ -370,9 +370,8 @@ def chatbot_start(request, patient_id):
         "main_url": reverse("patients:main", args=[patient_id]),
     })
     
-    login_required
+@login_required
 def chatbot_end(request, patient_id):
-
     if request.method != "POST":
         return JsonResponse({"error": "POST only"}, status=405)
 
@@ -383,18 +382,27 @@ def chatbot_end(request, patient_id):
         status="active"
     ).first()
 
+    # 원인 1: 찾을 수 없어서 조용히 success=True만 반환하고 끝나는 경우
     if chat_session is None:
+        print(f"⚠️ [chatbot_end] {patient_id} 환자의 active 상태인 ChatSession을 찾을 수 없습니다.")
+        return JsonResponse({"error": "No active session"}, status=404)
+
+    try:
+        chat_session.status = "closed"
+        chat_session.ended_at = timezone.now()
+        
+        # 원인 2: 요약 처리 함수에서 에러가 발생하는 경우
+        title, detail = process_chat_summary(chat_session.session_id)
+        chat_session.intent = title
+        chat_session.summary = detail
+
+        chat_session.save()
+        print("✅ 데이터베이스 저장 완료!")
         return JsonResponse({"success": True})
-
-    chat_session.status = "closed"
-    chat_session.ended_at = timezone.now()
-
-    # 나중에 LangGraph 요약 붙일 예정
-    # chat_session.summary = summary
-
-    chat_session.save()
-
-    return JsonResponse({"success": True})
+        
+    except Exception as e:
+        print(f"❌ [chatbot_end] 에러 발생: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
 
 # ------------------------------------------------------------------
 # 온보딩 (최초진입) — 명세서의 "최초진입" -- 7단계
