@@ -7,7 +7,7 @@ patients/views.py
 불안정한 패턴이라 피한다).
 """
 import calendar
-from datetime import datetime
+from datetime import datetime, date
 import re
 
 from django.contrib.auth.decorators import login_required
@@ -24,7 +24,7 @@ from .models import (
 )
 
 # 챗봇 쪽 
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from langchain_core.messages import HumanMessage
 from asgiref.sync import async_to_sync
 import sqlite3
@@ -111,9 +111,14 @@ def dosing_calendar(request, patient_id):
     year = int(request.GET.get("year", today.year))
     month = int(request.GET.get("month", today.month))
 
-    logs = DosingLog.objects.filter(
-        patient=patient, scheduled_at__year=year, scheduled_at__month=month
-    ).select_related("prescription_detail__drug")
+    # 수정 select_related() 삭제
+    logs = list(
+        DosingLog.objects.filter(
+            patient=patient,
+            scheduled_at__year=year,
+            scheduled_at__month=month
+        )
+    )
 
     # 날짜별로 그 날의 복용상태를 모은다 (하루에 여러 건이면 '모두 완료'일 때만 done)
     status_by_day = {}
@@ -140,7 +145,7 @@ def dosing_calendar(request, patient_id):
                 week_cells.append({
                     "day": day,
                     "status": day_status(statuses) if statuses else "none",
-                    "is_today": datetime(year, month, day) == today,
+                    "is_today": date(year, month, day) == today,
                 })
         weeks.append(week_cells)
 
