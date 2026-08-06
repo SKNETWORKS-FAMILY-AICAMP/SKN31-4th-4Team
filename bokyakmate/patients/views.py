@@ -228,6 +228,17 @@ def dosing_calendar(request, patient_id):
             log.status = "missed"
             log.save(update_fields=["status"])
 
+    for log in todays_logs:
+        log.can_take = (
+            log.status == "pending"
+            and log.scheduled_at <= now
+        )
+
+        log.is_future = (
+            log.status == "pending"
+            and log.scheduled_at > now
+        )
+
     # [수정됨 4] Neo4j 조회를 위해 drug_id를 무조건 문자열(str)로 통일!
     drug_codes = set(
         str(log.prescription_detail.drug_id)
