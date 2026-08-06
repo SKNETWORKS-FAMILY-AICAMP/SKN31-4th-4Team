@@ -646,3 +646,52 @@ body {
 .summary-item:last-child{
     border-bottom:none;
 }
+
+/* claendar add */
+.mypage-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.section-icon {
+    display: inline-flex;
+    color: var(--ink-soft, #7C8B96);
+}
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.stat-card {
+    border-radius: 16px;
+    padding: 14px 16px;
+    background: #F7FAFC;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #23313D;
+}
+
+.stat-unit {
+    font-size: 13px;
+    font-weight: 500;
+    margin-left: 2px;
+    color: #7C8B96;
+}
+
+.stat-label {
+    margin-top: 2px;
+    font-size: 13px;
+    color: #7C8B96;
+}
+
+.stat-mint     { background: #E9F7F1; }
+.stat-butter   { background: #FDF6E3; }
+.stat-peach    { background: #FDECE3; }
+.stat-lavender { background: #F1EEFB; }
