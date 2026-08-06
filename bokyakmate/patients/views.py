@@ -7,7 +7,7 @@ patients/views.py
 불안정한 패턴이라 피한다).
 """
 import calendar
-from datetime import datetime, date
+from datetime import datetime, time, date
 import re
 
 from django.contrib.auth.decorators import login_required
@@ -31,6 +31,8 @@ import sqlite3
 import json
 from Chatbot.builder import build_graph, build_initial_state
 from services.end_summary import process_chat_summary
+# 복약 기록 쪽 
+from services.medical_graph import get_neo4j_drug_details
 
 def _check_owner(request, patient_id):
     """로그인한 사용자가 이 환자 본인인지 확인 (다른 환자 URL을 직접 쳐서 못 들어가게)."""
@@ -108,36 +110,35 @@ def dosing_calendar(request, patient_id):
     patient = get_object_or_404(Patient, patient_id=patient_id)
 
     today = timezone.localdate()
-    selected_date = request.GET.get("date")
+    selected_date_str = request.GET.get("date")
 
-    if selected_date:
-        selected_date = datetime.strptime(
-            selected_date,
-            "%Y-%m-%d"
-        ).date()
+    if selected_date_str:
+        selected_date = datetime.strptime(selected_date_str, "%Y-%m-%d").date()
     else:
         selected_date = today
 
     year = int(request.GET.get("year", today.year))
     month = int(request.GET.get("month", today.month))
 
-    # 수정 select_related() 삭제
+    # [수정됨 1] 월별 데이터 조회 - 타임존 문제 방지를 위해 명확하게 날짜 범위로 지정
+    start_of_month = timezone.make_aware(datetime(year, month, 1))
+    if month == 12:
+        end_of_month = timezone.make_aware(datetime(year + 1, 1, 1))
+    else:
+        end_of_month = timezone.make_aware(datetime(year, month + 1, 1))
+
     logs = list(
         DosingLog.objects.filter(
             patient=patient,
-            scheduled_at__year=year,
-            scheduled_at__month=month
+            scheduled_at__gte=start_of_month,
+            scheduled_at__lt=end_of_month
         )
     )
 
-    # 자동 미복용 처리
+    # 자동 미복용 처리 (이번 달 전체)
     now = timezone.now()
-
     for log in logs:
-        if (
-            log.status == "pending"
-            and log.scheduled_at < now
-        ):
+        if log.status == "pending" and log.scheduled_at < now:
             log.status = "missed"
             log.save(update_fields=["status"])
 
@@ -145,18 +146,13 @@ def dosing_calendar(request, patient_id):
     done_logs = sum(1 for log in logs if log.status == "done")
     missed_logs = sum(1 for log in logs if log.status == "missed")
     pending_logs = sum(1 for log in logs if log.status == "pending")
-
     total_logs = len(logs)
+    monthly_progress = int(done_logs * 100 / total_logs) if total_logs > 0 else 0
 
-    if total_logs > 0:
-        monthly_progress = int(done_logs * 100 / total_logs)
-    else:
-        monthly_progress = 0
-
-    # 날짜별로 그 날의 복용상태를 모은다 (하루에 여러 건이면 '모두 완료'일 때만 done)
+    # 날짜별 상태 집계
     status_by_day = {}
     for log in logs:
-        day = log.scheduled_at.day
+        day = timezone.localtime(log.scheduled_at).day
         status_by_day.setdefault(day, []).append(log.status)
 
     def day_status(statuses):
@@ -175,38 +171,53 @@ def dosing_calendar(request, patient_id):
                 week_cells.append(None)
             else:
                 statuses = status_by_day.get(day)
+                current_date = date(year, month, day)
                 week_cells.append({
                     "day": day,
-                    "date": date(year, month, day),                    
+                    "date": current_date,
                     "status": day_status(statuses) if statuses else "none",
-                    "is_today": date(year, month, day) == today,
+                    "is_today": current_date == today,
+                    "is_selected": current_date == selected_date, # [수정됨 2] 선택된 날짜 여부 추가!
                 })
         weeks.append(week_cells)
 
-    todays_logs = DosingLog.objects.filter(
-        patient=patient,
-        scheduled_at__date=selected_date
-    ).select_related("prescription_detail__drug")
+    # [수정됨 3] 오늘(선택한 날짜) 복약 리스트 - 시간 범위를 00:00 ~ 23:59로 명확히 주어 데이터 누락 방지!
+    start_of_day = timezone.make_aware(datetime.combine(selected_date, time.min))
+    end_of_day = timezone.make_aware(datetime.combine(selected_date, time.max))
+
+    todays_logs = list(
+        DosingLog.objects.filter(
+            patient=patient, 
+            scheduled_at__gte=start_of_day,
+            scheduled_at__lte=end_of_day
+        ).select_related("prescription_detail")
+    )
 
     for log in todays_logs:
-        if (
-            log.status == "pending"
-            and log.scheduled_at < timezone.now()
-        ):
+        if log.status == "pending" and log.scheduled_at < now:
             log.status = "missed"
             log.save(update_fields=["status"])
 
-    total_count = todays_logs.count()
-    done_count = todays_logs.filter(status="done").count()
+    # [수정됨 4] Neo4j 조회를 위해 drug_id를 무조건 문자열(str)로 통일!
+    drug_codes = set(
+        str(log.prescription_detail.drug_id)
+        for log in todays_logs
+        if log.prescription_detail and log.prescription_detail.drug_id
+    )
+    neo4j_drugs = get_neo4j_drug_details(list(drug_codes)) if drug_codes else {}
 
-    if total_count > 0:
-        progress = int(done_count * 100 / total_count)
-    else:
-        progress = 0
+    for log in todays_logs:
+        if log.prescription_detail and log.prescription_detail.drug_id:
+            code = str(log.prescription_detail.drug_id)
+            log.prescription_detail.neo4j_info = neo4j_drugs.get(code, {})
 
-    prev_month = (datetime(year, month, 1) - timezone.timedelta(days=1))
-    next_month_date = datetime(year, month, 28) + timezone.timedelta(days=7)
-    next_month_date = next_month_date.replace(day=1)
+    total_count = len(todays_logs)
+    done_count = sum(1 for log in todays_logs if log.status == "done")
+    progress = int(done_count * 100 / total_count) if total_count > 0 else 0
+
+    # [수정됨 5] 이전 달, 다음 달 이동 시 날짜가 꼬이지 않게 1일로 맞춰줌
+    prev_month_date = (datetime(year, month, 1) - timezone.timedelta(days=1)).date()
+    next_month_date = (datetime(year, month, 28) + timezone.timedelta(days=7)).replace(day=1).date()
 
     context = {
         "patient": patient,
@@ -222,13 +233,13 @@ def dosing_calendar(request, patient_id):
         "done_logs": done_logs,
         "missed_logs": missed_logs,
         "pending_logs": pending_logs,
-        "prev_url": f"?year={prev_month.year}&month={prev_month.month}&date={selected_date}",
-        "next_url": f"?year={next_month_date.year}&month={next_month_date.month}&date={selected_date}",
+        "prev_url": f"?year={prev_month_date.year}&month={prev_month_date.month}&date={prev_month_date.strftime('%Y-%m-%d')}",
+        "next_url": f"?year={next_month_date.year}&month={next_month_date.month}&date={next_month_date.strftime('%Y-%m-%d')}",
         "main_url": reverse("patients:main", args=[patient_id]),
     }
     return render(request, "patients/dosing_calendar.html", context)
-
-
+ 
+ 
 @login_required
 def mark_dose_taken(request, patient_id, log_id):
     """복약 체크 액션 (POST) — 오늘의 복약 리스트에서 '복용했어요' 버튼.
@@ -238,33 +249,47 @@ def mark_dose_taken(request, patient_id, log_id):
         log.status = "done"
         log.taken_at = timezone.now()
         log.save()
+ 
     if request.GET.get("next") == "main":
         return redirect("patients:main", patient_id=patient_id)
-
+ 
     selected_date = request.GET.get("date")
-
     if selected_date:
         return redirect(
             f"{reverse('patients:dosing_calendar', args=[patient_id])}"
             f"?date={selected_date}"
         )
-
     return redirect("patients:dosing_calendar", patient_id=patient_id)
-
-
+ 
+ 
 @login_required
 def records(request, patient_id):
     """기록 — 처방 기록/병원 방문 기록을 탭으로 묶어서 보여준다."""
     patient = get_object_or_404(Patient, patient_id=patient_id)
     active_tab = request.GET.get("tab", "prescriptions")
-
+ 
     prescriptions = (
         Prescription.objects.filter(patient=patient)
-        .select_related("hospital", "doctor")           
-        .prefetch_related("details__drug")
+        .select_related("hospital", "doctor")
+        .prefetch_related("details")
         .order_by("-prescribed_at")
     )
-
+ 
+    # Neo4j 약물 상세정보 배치 조회 + 각 detail에 붙이기
+    # detail.drug_id 가 db_column="drug_product_code" FK의 raw 값(제품코드)
+    drug_codes = set()
+    for p in prescriptions:
+        for detail in p.details.all():
+            if detail.drug_id:
+                drug_codes.add(detail.drug_id)
+ 
+    neo4j_drugs = get_neo4j_drug_details(list(drug_codes)) if drug_codes else {}
+ 
+    for p in prescriptions:
+        for detail in p.details.all():
+            if detail.drug_id:
+                detail.neo4j_info = neo4j_drugs.get(detail.drug_id, {})
+ 
     context = {
         "patient": patient,
         "active_tab": active_tab,
