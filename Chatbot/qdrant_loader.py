@@ -11,9 +11,9 @@ load_dotenv()
 
 QDRANT_COLLECTION: str = os.getenv("QDRANT_COLLECTION", "medical_docs")
 EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
-QDRANT_URL = os.getenv("QDRANT_URL", "http://52.78.243.234:6333/")
+QDRANT_URL = os.getenv("QDRANT_URL", "http://52.78.243.234:6333")
 
-
+QDRANT_URL = "http://52.78.243.234:6333"
 def load_vectorstore():
     """
     기존에 생성된 Qdrant Vector DB를 불러옵니다.
