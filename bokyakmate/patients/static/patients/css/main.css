@@ -695,3 +695,24 @@ body {
 .stat-butter   { background: #FDF6E3; }
 .stat-peach    { background: #FDECE3; }
 .stat-lavender { background: #F1EEFB; }
+
+.record-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.summary-text {
+    margin: 0;
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: var(--ink-soft, #5C6B76);
+    letter-spacing: -0.1px;
+    word-break: keep-all;       /* 한글 단어 단위로 줄바꿈, 어절 중간에서 안 끊기게 */
+    white-space: pre-line;      /* linebreaksbr 대신 써도 되는 대안, 아래 참고 */
+}
+
+.summary-text::first-line {
+    color: var(--ink, #23313D);
+    font-weight: 600;
+}

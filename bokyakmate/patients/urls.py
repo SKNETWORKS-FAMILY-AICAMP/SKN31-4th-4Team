@@ -18,6 +18,7 @@ urlpatterns = [
     path("<str:patient_id>/calendar/<int:log_id>/take/", views.mark_dose_taken, name="mark_dose_taken"),
     path("<str:patient_id>/records/", views.records, name="records"),
     path("<str:patient_id>/chats/", views.chat_history, name="chat_history"),
+    path("<str:patient_id>/chats/<int:pk>/", views.chat_history_detail, name="chat_history_detail"),
     path("<str:patient_id>/mypage/", views.mypage, name="mypage"),
     path("<str:patient_id>/chatbot/", views.chatbot_start, name="chatbot_start"),
     path("<str:patient_id>/chatbot/end", views.chatbot_end, name="chatbot_end"),

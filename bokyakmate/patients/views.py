@@ -380,6 +380,18 @@ def chat_history(request, patient_id):
         "patient": patient, "chats": chats,
         "main_url": reverse("patients:main", args=[patient_id]),
     })
+    
+@login_required
+def chat_history_detail(request, patient_id, pk):
+    patient = get_object_or_404(Patient, patient_id=patient_id)
+    chat = get_object_or_404(ChatSession, pk=pk, patient=patient)
+
+    return render(request, "patients/chat_history_detail.html", {
+        "patient": patient,
+        "chat": chat,
+        "main_url": reverse("patients:main", args=[patient_id]),
+        "list_url": reverse("patients:chat_history", args=[patient_id]),
+    })
 
 @login_required
 def chatbot_start(request, patient_id):
@@ -497,6 +509,18 @@ def chatbot_end(request, patient_id):
     except Exception as e:
         print(f"❌ [chatbot_end] 에러 발생: {e}")
         return JsonResponse({"error": str(e)}, status=500)
+
+@login_required
+def chat_history_detail(request, patient_id, pk):
+    patient = get_object_or_404(Patient, patient_id=patient_id)
+    chat = get_object_or_404(ChatSession, pk=pk, patient=patient)
+
+    return render(request, "patients/chat_history_detail.html", {
+        "patient": patient,
+        "chat": chat,
+        "main_url": reverse("patients:main", args=[patient_id]),
+        "list_url": reverse("patients:chat_history", args=[patient_id]),
+    })
 
 # ------------------------------------------------------------------
 # 온보딩 (최초진입) — 명세서의 "최초진입" -- 7단계

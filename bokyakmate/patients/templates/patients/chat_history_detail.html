@@ -1,0 +1,56 @@
+{% load static %}
+{% load patient_tags %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>상담 상세</title>
+<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+</head>
+<body>
+
+<div class="phone">
+    <div class="subpage-header">
+        <a href="{{ list_url }}">←</a>
+        <h1>상담 상세</h1>
+    </div>
+
+    <div class="subpage-body scroll-body">
+
+        <div class="mypage-section">
+            <div class="record-card">
+                <div class="title">{{ chat.get_intent_display|default:"상담 기록" }}</div>
+                <div class="meta">
+                    {{ chat.started_at|date:"Y.m.d H:i" }}
+                    {% if chat.ended_at %} ~ {{ chat.ended_at|date:"H:i" }}{% endif %}
+                    {% if chat.status == "active" %} · <span class="tag-check">진행중</span>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="mypage-section">
+            <h3>상담 요약</h3>
+            <div class="record-card">
+                {% if chat.summary %}
+                <p class="summary-text">{{ chat.summary|linebreaksbr }}</p>
+                {% else %}
+                <span class="empty-state">
+                    {% if chat.status == "active" %}
+                        아직 진행 중인 상담이라 요약이 준비되지 않았어요.
+                    {% else %}
+                        요약 내용이 없어요.
+                    {% endif %}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <div>
+        {% bottom_nav "records" %}
+    </div>
+</div>
+
+</body>
+</html>
