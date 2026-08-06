@@ -182,6 +182,13 @@ class Prescription(models.Model):
         db_column="hospital_code"
     )
 
+    doctor = models.ForeignKey(
+            Doctor,
+            on_delete=models.PROTECT,      
+            db_column="doc_id",
+            related_name="prescriptions",
+        )
+    
     prescribed_at = models.DateField()
 
     diagnosis = models.CharField(max_length=100, blank=True)
@@ -271,6 +278,7 @@ class DosingLog(models.Model):
 # Chat Session
 # =========================
 
+
 class ChatSession(models.Model):
 
     INTENT = [
@@ -284,12 +292,13 @@ class ChatSession(models.Model):
         ("closed", "종료"),
     ]
 
-    # 상담(Session)의 고유 ID
-    # LangGraph의 thread_id로 그대로 사용
+    # Django 기본 자동증가 PK (id) 사용 — 명시 안 해도 자동 생성되지만 가독성을 위해 명시
+    id = models.BigAutoField(primary_key=True)
+
+    # LangGraph의 thread_id로 사용하는 값. 더 이상 PK 아님.
     session_id = models.UUIDField(
-        primary_key=True,
         default=uuid.uuid4,
-        editable=False
+        editable=False,
     )
 
     patient = models.ForeignKey(
@@ -298,35 +307,12 @@ class ChatSession(models.Model):
         related_name="chat_sessions"
     )
 
-    # 최초 질문 기준 상담 유형
-    intent = models.CharField(
-        max_length=10,
-        choices=INTENT,
-        blank=True
-    )
-
-    # 상담 시작 시각
-    started_at = models.DateTimeField(
-        auto_now_add=True
-    )
-
-    # 상담 종료 시각
-    ended_at = models.DateTimeField(
-        null=True,
-        blank=True
-    )
-
-    # 상담 상태
-    status = models.CharField(
-        max_length=10,
-        choices=STATUS,
-        default="active"
-    )
-
+    intent = models.CharField(max_length=10, choices=INTENT, blank=True)     # 최초 질문 기준 상담 유형
+    started_at = models.DateTimeField(auto_now_add=True) # 상담 시작 시각
+    ended_at = models.DateTimeField(null=True, blank=True)  # 상담 종료 시각
+    status = models.CharField(max_length=10, choices=STATUS, default="active")# 상담 상태
+    summary = models.TextField(blank=True)
     # 상담 종료 후 LLM 요약
-    summary = models.TextField(
-        blank=True
-    )
 
     class Meta:
         db_table = "chat_session"

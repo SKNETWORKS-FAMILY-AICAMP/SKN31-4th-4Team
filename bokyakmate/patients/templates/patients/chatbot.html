@@ -17,7 +17,7 @@
     </div>
 
     <div class="chat-screen">
-        <div class="chat-body" id="chat-body">
+        <div class="chat-body scroll-body" id="chat-body">
 
             {% if not messages %}
             {# ===== 최초진입 상태 ===== #}
@@ -99,57 +99,48 @@
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const md = window.markdownit({
-    breaks: true,linkify: true});
+    const md = window.markdownit({ breaks: true, linkify: true });
     const form = document.getElementById('chat-form');
     const input = document.getElementById('user-input');
     const chatBody = document.getElementById('chat-body');
     const exitBtn = document.getElementById("chat-exit-btn");
     document.querySelectorAll('.markdown-body').forEach(el => {
-    el.innerHTML = md.render(el.textContent);
+        el.innerHTML = md.render(el.textContent);
     });
 
     exitBtn.addEventListener("click", async function (e) {
-    e.preventDefault();
-
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-    try {
-        const response = await fetch("{% url 'patients:chatbot_end' patient.patient_id %}", {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": csrfToken
+        e.preventDefault();
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        try {
+            const response = await fetch("{% url 'patients:chatbot_end' patient.patient_id %}", {
+                method: "POST",
+                headers: { "X-CSRFToken": csrfToken }
+            });
+            if (!response.ok) {
+                console.error("상담 종료 실패");
             }
-        });
-
-        if (!response.ok) {
-            console.error("상담 종료 실패");
+        } catch (err) {
+            console.error(err);
         }
-
-    } catch (err) {
-        console.error(err);
-    }
-
-    window.location.href = "{{ main_url }}";
-}   );
+        window.location.href = "{{ main_url }}";
+    });
 
     form.addEventListener('submit', function(e) {
-        e.preventDefault(); 
+        e.preventDefault();
 
         const message = input.value.trim();
         if (!message) return;
 
-        // ==========================================
-        // ⭐ 새로 추가할 부분: 초기 화면 지우기
-        // ==========================================
         const introBox = document.querySelector('.chat-intro');
         if (introBox) {
-            introBox.remove(); // 화면에서 완전히 날려버립니다.
+            introBox.remove();
         }
-        // ==========================================
 
         appendMyMessage(message);
         input.value = '';
+
+        // ⭐ 답변 대기 중임을 보여주는 타이핑 말풍선 추가
+        showTypingIndicator();
 
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
@@ -163,20 +154,22 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            // 에러가 있으면 에러 메시지를, 성공하면 답변을 출력
+            hideTypingIndicator();  // ⭐ 응답 도착하면 타이핑 표시 제거
+
             if (data.error) {
-                appendAiMessage("서버 에러: " + data.error); 
+                appendAiMessage("서버 에러: " + data.error);
             } else {
-                appendAiMessage(data.reply); 
+                appendAiMessage(data.reply);
             }
         })
-        .catch(error => console.error('통신 에러:', error));
+        .catch(error => {
+            hideTypingIndicator();  // ⭐ 에러 나도 반드시 제거 (안 지우면 계속 떠있음)
+            appendAiMessage("네트워크 오류가 발생했어요. 잠시 후 다시 시도해주세요.");
+            console.error('통신 에러:', error);
+        });
     });
-        // --------------------------------------------------
-    // 화면에 말풍선을 그려주는 도우미 함수들
-    // --------------------------------------------------
+
     function appendMyMessage(text) {
-        // 기존 HTML 디자인을 그대로 가져와서 텍스트만 쏙 끼워 넣습니다.
         const html = `
             <div class="msg-row patient">
                 <div class="msg-bubble">${text}</div>
@@ -187,9 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function appendAiMessage(text) {
-        // 혹시 \n이 문자열로 넘어오는 경우 실제 개행으로 변환
         text = text.replace(/\\n/g, "\n");
-
         const html = `
             <div class="msg-row assistant">
                 <div class="msg-avatar">🩺</div>
@@ -197,16 +188,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${md.render(text)}
                 </div>
             </div>`;
-
         chatBody.insertAdjacentHTML('beforeend', html);
         scrollToBottom();
     }
 
-    // 채팅이 길어지면 스크롤을 맨 아래로 내려주는 함수
+    // ⭐ 타이핑 말풍선 표시 — 기존 chatbot.html의 is_thinking 블록과 동일한 마크업
+    function showTypingIndicator() {
+        const html = `
+            <div class="msg-row assistant" id="typing-indicator">
+                <div class="msg-avatar">🩺</div>
+                <div class="typing-bubble"><span></span><span></span><span></span></div>
+            </div>`;
+        chatBody.insertAdjacentHTML('beforeend', html);
+        scrollToBottom();
+    }
+
+    // ⭐ 타이핑 말풍선 제거
+    function hideTypingIndicator() {
+        const el = document.getElementById('typing-indicator');
+        if (el) el.remove();
+    }
+
     function scrollToBottom() {
         chatBody.scrollTop = chatBody.scrollHeight;
     }
-}); // <--- ★ 여기가 빠져서 에러가 났던 겁니다! 이 줄이 꼭 있어야 해요.
+});
 </script>
 </body>
 </html>

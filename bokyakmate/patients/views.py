@@ -30,7 +30,7 @@ from asgiref.sync import async_to_sync
 import sqlite3
 import json
 from Chatbot.builder import build_graph, build_initial_state
-
+from services.end_summary import process_chat_summary
 
 def _check_owner(request, patient_id):
     """로그인한 사용자가 이 환자 본인인지 확인 (다른 환자 URL을 직접 쳐서 못 들어가게)."""
@@ -108,6 +108,16 @@ def dosing_calendar(request, patient_id):
     patient = get_object_or_404(Patient, patient_id=patient_id)
 
     today = timezone.localdate()
+    selected_date = request.GET.get("date")
+
+    if selected_date:
+        selected_date = datetime.strptime(
+            selected_date,
+            "%Y-%m-%d"
+        ).date()
+    else:
+        selected_date = today
+
     year = int(request.GET.get("year", today.year))
     month = int(request.GET.get("month", today.month))
 
@@ -119,6 +129,29 @@ def dosing_calendar(request, patient_id):
             scheduled_at__month=month
         )
     )
+
+    # 자동 미복용 처리
+    now = timezone.now()
+
+    for log in logs:
+        if (
+            log.status == "pending"
+            and log.scheduled_at < now
+        ):
+            log.status = "missed"
+            log.save(update_fields=["status"])
+
+    # 월간 통계
+    done_logs = sum(1 for log in logs if log.status == "done")
+    missed_logs = sum(1 for log in logs if log.status == "missed")
+    pending_logs = sum(1 for log in logs if log.status == "pending")
+
+    total_logs = len(logs)
+
+    if total_logs > 0:
+        monthly_progress = int(done_logs * 100 / total_logs)
+    else:
+        monthly_progress = 0
 
     # 날짜별로 그 날의 복용상태를 모은다 (하루에 여러 건이면 '모두 완료'일 때만 done)
     status_by_day = {}
@@ -144,13 +177,32 @@ def dosing_calendar(request, patient_id):
                 statuses = status_by_day.get(day)
                 week_cells.append({
                     "day": day,
+                    "date": date(year, month, day),                    
                     "status": day_status(statuses) if statuses else "none",
                     "is_today": date(year, month, day) == today,
                 })
         weeks.append(week_cells)
 
-    todays_logs = DosingLog.objects.filter(patient=patient, scheduled_at__date=today) \
-        .select_related("prescription_detail__drug")
+    todays_logs = DosingLog.objects.filter(
+        patient=patient,
+        scheduled_at__date=selected_date
+    ).select_related("prescription_detail__drug")
+
+    for log in todays_logs:
+        if (
+            log.status == "pending"
+            and log.scheduled_at < timezone.now()
+        ):
+            log.status = "missed"
+            log.save(update_fields=["status"])
+
+    total_count = todays_logs.count()
+    done_count = todays_logs.filter(status="done").count()
+
+    if total_count > 0:
+        progress = int(done_count * 100 / total_count)
+    else:
+        progress = 0
 
     prev_month = (datetime(year, month, 1) - timezone.timedelta(days=1))
     next_month_date = datetime(year, month, 28) + timezone.timedelta(days=7)
@@ -161,9 +213,17 @@ def dosing_calendar(request, patient_id):
         "weeks": weeks,
         "year": year,
         "month": month,
+        "selected_date": selected_date,
         "todays_logs": todays_logs,
-        "prev_url": f"?year={prev_month.year}&month={prev_month.month}",
-        "next_url": f"?year={next_month_date.year}&month={next_month_date.month}",
+        "done_count": done_count,
+        "total_count": total_count,
+        "progress": progress,
+        "monthly_progress": monthly_progress,
+        "done_logs": done_logs,
+        "missed_logs": missed_logs,
+        "pending_logs": pending_logs,
+        "prev_url": f"?year={prev_month.year}&month={prev_month.month}&date={selected_date}",
+        "next_url": f"?year={next_month_date.year}&month={next_month_date.month}&date={selected_date}",
         "main_url": reverse("patients:main", args=[patient_id]),
     }
     return render(request, "patients/dosing_calendar.html", context)
@@ -180,6 +240,15 @@ def mark_dose_taken(request, patient_id, log_id):
         log.save()
     if request.GET.get("next") == "main":
         return redirect("patients:main", patient_id=patient_id)
+
+    selected_date = request.GET.get("date")
+
+    if selected_date:
+        return redirect(
+            f"{reverse('patients:dosing_calendar', args=[patient_id])}"
+            f"?date={selected_date}"
+        )
+
     return redirect("patients:dosing_calendar", patient_id=patient_id)
 
 
@@ -403,6 +472,18 @@ def chatbot_end(request, patient_id):
     except Exception as e:
         print(f"❌ [chatbot_end] 에러 발생: {e}")
         return JsonResponse({"error": str(e)}, status=500)
+
+@login_required
+def chat_history_detail(request, patient_id, pk):
+    patient = get_object_or_404(Patient, patient_id=patient_id)
+    chat = get_object_or_404(ChatSession, pk=pk, patient=patient)
+
+    return render(request, "patients/chat_history_detail.html", {
+        "patient": patient,
+        "chat": chat,
+        "main_url": reverse("patients:main", args=[patient_id]),
+        "list_url": reverse("patients:chat_history", args=[patient_id]),
+    })
 
 # ------------------------------------------------------------------
 # 온보딩 (최초진입) — 명세서의 "최초진입" -- 7단계
@@ -635,4 +716,35 @@ def onboarding_health_additional(request):
         {
             "patient": patient,
         },
+    )
+
+def calendar_day(request, patient_id, selected_date):
+
+    patient = get_object_or_404(
+        Patient,
+        patient_id=patient_id
+    )
+
+    target_date = datetime.strptime(
+        selected_date,
+        "%Y-%m-%d"
+    ).date()
+
+    logs = DosingLog.objects.filter(
+        patient=patient,
+        scheduled_at__date=target_date
+    ).select_related(
+        "prescription_detail__drug"
+    ).order_by("scheduled_at")
+
+    context = {
+        "patient": patient,
+        "target_date": target_date,
+        "logs": logs,
+    }
+
+    return render(
+        request,
+        "patients/calendar_day.html",
+        context
     )

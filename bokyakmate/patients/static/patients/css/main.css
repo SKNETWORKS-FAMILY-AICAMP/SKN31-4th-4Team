@@ -39,6 +39,7 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
+    height: 500px;
 }
 
 .header {
@@ -132,11 +133,11 @@ body {
 .subpage-header h1 { font-family: 'Gmarket Sans', sans-serif; font-size: 17px; margin: 0; font-weight: 500; }
 .subpage-body { padding: 20px; flex: 1; overflow-y: auto; height: 600px;
 }
-.mypage-nav-wrap {
+.nav-wrap {
         flex-shrink: 0;
         position: relative !important;
     }
-.mypage-nav-wrap > * {
+.nav-wrap > * {
         position: relative !important;
         bottom: auto !important;
         left: auto !important;
@@ -537,3 +538,181 @@ body {
     padding: 12px 14px; font-size: 12.5px; color: var(--ink); cursor: pointer;
 }
 .suggested-q-card:hover { border-color: var(--sky); }
+
+/* chat bot 말풍선/ css */
+.typing-bubble {
+    display: flex;
+    gap: 4px;
+    padding: 10px 14px;
+    background: #F1F5F8;
+    border-radius: 16px;
+    width: fit-content;
+}
+.typing-bubble span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #9CA9B4;
+    animation: typing-bounce 1.2s infinite ease-in-out;
+}
+.typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+.typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.scroll-body {
+    /* 스크롤 애니메이션 부드럽게 */
+    scroll-behavior: smooth;
+
+    /* Firefox용 */
+    scrollbar-width: thin;
+    scrollbar-color: #C9D6DE transparent;
+}
+
+/* Chrome, Safari, Edge (Webkit 계열) */
+.scroll-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scroll-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scroll-body::-webkit-scrollbar-thumb {
+    background-color: #C9D6DE;
+    border-radius: 10px;
+}
+
+.scroll-body::-webkit-scrollbar-thumb:hover {
+    background-color: #9CA9B4;
+}
+
+/* ================= 복약 진행률 ================= */
+.progress-area{
+    margin:15px 0 20px;
+}
+
+.progress-text{
+    font-size:14px;
+    margin-bottom:8px;
+    font-weight:600;
+}
+
+.progress-bar{
+    width:100%;
+    height:10px;
+    background:#e5e7eb;
+    border-radius:999px;
+    overflow:hidden;
+}
+
+.progress-fill{
+    height:100%;
+    background:#4CAF50;
+    transition:width .3s;
+}
+
+.progress-percent{
+    text-align:right;
+    margin-top:6px;
+    font-size:13px;
+    color:#666;
+}
+
+/* ============== 월별 복약 통계 ================ */
+.month-summary{
+    margin-top:25px;
+    padding:18px;
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06);
+}
+
+.month-summary h3{
+    margin-bottom:15px;
+    font-size:17px;
+}
+
+.summary-item{
+    display:flex;
+    justify-content:space-between;
+    padding:8px 0;
+    border-bottom:1px solid #eee;
+}
+
+.summary-item:last-child{
+    border-bottom:none;
+}
+
+/* claendar add */
+.mypage-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.section-icon {
+    display: inline-flex;
+    color: var(--ink-soft, #7C8B96);
+}
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.stat-card {
+    border-radius: 16px;
+    padding: 14px 16px;
+    background: #F7FAFC;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #23313D;
+}
+
+.stat-unit {
+    font-size: 13px;
+    font-weight: 500;
+    margin-left: 2px;
+    color: #7C8B96;
+}
+
+.stat-label {
+    margin-top: 2px;
+    font-size: 13px;
+    color: #7C8B96;
+}
+
+.stat-mint     { background: #E9F7F1; }
+.stat-butter   { background: #FDF6E3; }
+.stat-peach    { background: #FDECE3; }
+.stat-lavender { background: #F1EEFB; }
+
+.record-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.summary-text {
+    margin: 0;
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: var(--ink-soft, #5C6B76);
+    letter-spacing: -0.1px;
+    word-break: keep-all;       /* 한글 단어 단위로 줄바꿈, 어절 중간에서 안 끊기게 */
+    white-space: pre-line;      /* linebreaksbr 대신 써도 되는 대안, 아래 참고 */
+}
+
+.summary-text::first-line {
+    color: var(--ink, #23313D);
+    font-weight: 600;
+}

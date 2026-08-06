@@ -2,65 +2,133 @@
 {% load patient_tags %}
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
-<meta charset="UTF-8">
-<title>복약 캘린더 · 복약메이트</title>
-<link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+    <meta charset="UTF-8">
+    <title>복약 캘린더 · 복약메이트</title>
+    <link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
 </head>
+
 <body>
 
-<div class="phone">
-    <div class="subpage-header">
-        <a href="{{ main_url }}">←</a>
-        <h1>복약 캘린더</h1>
-    </div>
-
-    <div class="subpage-body">
-        <div class="cal-nav">
-            <a href="{{ prev_url }}">‹</a>
-            <span class="cal-title">{{ year }}년 {{ month }}월</span>
-            <a href="{{ next_url }}">›</a>
+    <div class="phone">
+        <div class="subpage-header">
+            <a href="{{ main_url }}">←</a>
+            <h1>복약 캘린더</h1>
         </div>
 
-        <div class="cal-grid">
-            <div class="cal-dow">일</div><div class="cal-dow">월</div><div class="cal-dow">화</div>
-            <div class="cal-dow">수</div><div class="cal-dow">목</div><div class="cal-dow">금</div><div class="cal-dow">토</div>
+        <div class="subpage-body scroll-body">
+            <div class="cal-nav">
+                <a href="{{ prev_url }}">‹</a>
+                <span class="cal-title">{{ year }}년 {{ month }}월</span>
+                <a href="{{ next_url }}">›</a>
+            </div>
 
-            {% for week in weeks %}
+            <div class="cal-grid">
+                <div class="cal-dow">일</div>
+                <div class="cal-dow">월</div>
+                <div class="cal-dow">화</div>
+                <div class="cal-dow">수</div>
+                <div class="cal-dow">목</div>
+                <div class="cal-dow">금</div>
+                <div class="cal-dow">토</div>
+
+                {% for week in weeks %}
                 {% for cell in week %}
-                    {% if cell %}
-                        <div class="cal-cell {% if cell.is_today %}today{% endif %} status-{{ cell.status }}">{{ cell.day }}</div>
-                    {% else %}
-                        <div class="cal-cell"></div>
-                    {% endif %}
-                {% endfor %}
-            {% endfor %}
-        </div>
-
-        <div class="today-list">
-            <p class="section-title">오늘의 복약</p>
-            {% for log in todays_logs %}
-            <div class="dose-item">
-                <div>
-                    <div class="name">{{ log.prescription_detail.drug.drug_name }}</div>
-                    <div class="time">{{ log.scheduled_at|date:"H:i" }} 예정</div>
-                </div>
-                {% if log.status == "done" %}
-                    <span class="dose-btn done">✓ 복용완료</span>
+                {% if cell %}
+                <a href="?year={{ year }}&month={{ month }}&date={{ cell.date|date:'Y-m-d' }}"
+                    class="cal-cell {% if cell.is_today %}today{% endif %} status-{{ cell.status }}">
+                    {{ cell.day }}
+                </a>
                 {% else %}
-                    <form method="post" action="{% url 'patients:mark_dose_taken' patient.patient_id log.id %}">
+                <div class="cal-cell"></div>
+                {% endif %}
+                {% endfor %}
+                {% endfor %}
+            </div>
+
+            <div class="today-list">
+                <p class="section-title">
+                    {{ selected_date|date:"Y년 m월 d일" }} 복약
+                </p>
+
+                <div class="progress-area">
+
+                    <div class="progress-text">
+                        {{ done_count }} / {{ total_count }} 완료
+                    </div>
+
+                    <div class="progress-bar">
+
+                        <div class="progress-fill" style="width: {{ progress }}%;"></div>
+
+                    </div>
+
+                    <div class="progress-percent">
+                        {{ progress }}%
+                    </div>
+
+                </div>
+
+                {% for log in todays_logs %}
+                <div class="dose-item">
+                    <div>
+                        <div class="name">{{ log.prescription_detail.drug.drug_name }}</div>
+                        <div class="time">{{ log.scheduled_at|date:"H:i" }} 예정</div>
+                    </div>
+                    {% if log.status == "done" %}
+                    <span class="dose-btn done">✓ 복용완료</span>
+                    {% else %}
+                    <form method="post"
+                        action="{% url 'patients:mark_dose_taken' patient.patient_id log.id %}?date={{ selected_date|date:'Y-m-d' }}">
                         {% csrf_token %}
                         <button type="submit" class="dose-btn todo">복용했어요</button>
                     </form>
-                {% endif %}
+                    {% endif %}
+                </div>
+                {% empty %}
+                <div class="empty-state">오늘 예정된 복약이 없어요.</div>
+                {% endfor %}
+
+                <div class="mypage-section">
+                    <h3>
+                        <span class="section-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 20V10M12 20V4M20 20V14" stroke="currentColor" stroke-width="2.2"
+                                    stroke-linecap="round" />
+                            </svg>
+                        </span>
+                        이번 달 복약 통계
+                    </h3>
+
+                    <div class="stat-grid">
+                        <div class="stat-card stat-mint">
+                            <div class="stat-value">{{ monthly_progress }}<span class="stat-unit">%</span></div>
+                            <div class="stat-label">복약률</div>
+                        </div>
+                        <div class="stat-card stat-butter">
+                            <div class="stat-value">{{ done_logs }}<span class="stat-unit">회</span></div>
+                            <div class="stat-label">복용 완료</div>
+                        </div>
+                        <div class="stat-card stat-peach">
+                            <div class="stat-value">{{ missed_logs }}<span class="stat-unit">회</span></div>
+                            <div class="stat-label">미복용</div>
+                        </div>
+                        <div class="stat-card stat-lavender">
+                            <div class="stat-value">{{ pending_logs }}<span class="stat-unit">회</span></div>
+                            <div class="stat-label">예정</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            {% empty %}
-            <div class="empty-state">오늘 예정된 복약이 없어요.</div>
-            {% endfor %}
+
         </div>
-        {% bottom_nav "calendar" %}
+        <div class="nav-wrap">
+            {% bottom_nav "calendar" %}
+        </div>
     </div>
-</div>
 
 </body>
+
 </html>

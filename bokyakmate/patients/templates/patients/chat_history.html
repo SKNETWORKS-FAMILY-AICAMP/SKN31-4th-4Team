@@ -15,15 +15,17 @@
         <h1>상담 히스토리</h1>
     </div>
 
-    <div class="subpage-body">
+    <div class="subpage-body scroll-body">
         {% for chat in chats %}
-        <div class="record-card">
-            <div class="title">{{ chat.question_summary }}</div>
-            <div class="meta">{{ chat.started_at|date:"Y.m.d H:i" }}{% if chat.intent %} · {{ chat.intent }}{% endif %}</div>
-        </div>
+        <a href="{% url 'patients:chat_history_detail' patient.patient_id chat.pk %}" class="record-card record-card-link">
+            <div class="title">{{ chat.get_intent_display|default:"상담 기록" }}</div>
+            <div class="meta">{{ chat.started_at|date:"Y.m.d H:i" }}{% if chat.status == "active" %} · 진행중{% endif %}</div>
+        </a>
         {% empty %}
         <div class="empty-state">아직 상담 기록이 없어요.</div>
         {% endfor %}
+    </div>
+    <div>
         {% bottom_nav "records" %}
     </div>
 </div>

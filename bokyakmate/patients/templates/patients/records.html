@@ -15,7 +15,7 @@
         <h1>내 기록</h1>
     </div>
 
-    <div class="subpage-body">
+    <div class="subpage-body scroll-body">
         <div class="tab-bar">
             <a href="?tab=prescriptions" class="{% if active_tab == 'prescriptions' %}active{% endif %}">처방받은 약</a>
             <a href="?tab=visits" class="{% if active_tab == 'visits' %}active{% endif %}">병원 방문</a>
@@ -51,10 +51,10 @@
                     <div class="empty-state">아직 방문 기록이 없어요.</div>
                     {% endfor %}
                 {% endif %}
-    </div>
-
-    {% bottom_nav "records" %}
-</div>
-
+                </div>
+                <div>
+                    {% bottom_nav "records" %}
+                </div>
+   </div>
 </body>
 </html>
