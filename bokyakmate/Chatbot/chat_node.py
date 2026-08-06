@@ -29,26 +29,16 @@ class FollowupRouteResult(BaseModel):
         description="지금까지의 대화 내역으로 부작용 문진에 필요한 정보가 충분히 모였다고 판단되면 True"
     )
 
-class ProhibitedRouteResult(BaseModel):
-    need_prohibited_check: bool = Field(
-        description="사용자가 같이 먹으면 안 되는 약을 묻고 있는지 여부"
-    )
-    mentioned_drug_name: str | None = Field(
-        default=None,
-        description="사용자가 언급한, 현재 복용 중인 약이 아닌 다른 약의 이름. 언급이 없으면 None"
-    )
-
 # Structured Output 적용
 router_llm = llm.with_structured_output(RouteResult)
 followup_router_llm = llm.with_structured_output(FollowupRouteResult, method="function_calling")
-prohibited_router_llm = llm.with_structured_output(ProhibitedRouteResult, method="function_calling")
 
 
 # state 확인 후 약정보 조회 노드 및 일반 채팅 노드 분기
 def router(state: State):
     if state.get("need_medicine"):
         return "medicine_node"
-    return "prohibited_router_node"
+    return "general_chat_node"
 
 
 # 외부 시스템(타임아웃 스캐너, 앱 종료 감지 등)이 심어주는 신호. 사용자 메시지 없이도 트리거.
@@ -71,13 +61,9 @@ def followup_router(state: State):
         return "symptom_summary_node"
     if state.get("symptom_followup"):
         return "side_effect_followup_node"
-    return "prohibited_router_node"
-
-# 일반 대화 및 병용 금기 조회 및 대답 노드 분기.
-def prohibited_router(state: State):
-    if state.get("Prohibited_medicine"):
-        return "prohibited_medicine_node"
     return "general_chat_node"
+
+
 
 # 약 정보가 필요한지 판단하는 노드
 def chat_node(state: State):
@@ -101,33 +87,7 @@ def chat_node(state: State):
         "need_medicine": result.need_medicine,
     }
 
-# 일반의약품 병용 금기 질문인지 판단하는 노드
-def prohibited_router_node(state: State):
-    PROHIBITED_ROUTER_SYSTEM_PROMPT = """
-    사용자가 방금 한 말이 다음에 해당하면 need_prohibited_check=True로 판단한다:
-    - 약의 이름을 명시하며 같이 먹어도 되는지 여부를 묻는 경우(예시: 타이레놀 먹어도 돼?)
-    need_prohibited_check=True인 경우, 사용자가 언급한 약 이름을 mentioned_drug_name에 담는다.
-    """
-    result = prohibited_router_llm.invoke(
-        [SystemMessage(content=PROHIBITED_ROUTER_SYSTEM_PROMPT)] + state["messages"]
-    )
-    return {
-        "need_prohibited_check": result.need_prohibited_check,
-        "mentioned_drug_name": result.mentioned_drug_name,
-    }
 
-# 환자가 복용 중인 약과, 사용자가 언급한 약 사이의 병용 금기를 조회하는 노드
-def prohibited_medicine_node(state: State):
-    mentioned_drug_name = state.get("mentioned_drug_name")
-    if not mentioned_drug_name:
-        return {"prohibited_medicine": {"found": False, "candidates": [], "interactions": []}}
-
-    result = check_interaction_with_my_drugs(state, mentioned_drug_name)
-
-    return {
-        "prohibited_medicine": result,
-    }
-    
 
 
 # 세션 종료 확인 시 안내 메시지를 보내고 마무리하는 노드
@@ -280,7 +240,7 @@ def side_effect_node(state: State):
     prompt = f"""
     # Context
     - 전체 대화 이력: {state.get("messages", [])}
-    - 복용 중인 약: {drugs}
+    - 복용 중인 약: {drug_names}
     - 조회된 부작용 정보: {medicine_side_effect}
     - 복용 후 경과 시간: {state.get("hours_since_dose")}시간
     - 과거 부작용 기록: {state.get("past_side_effect_summaries")}
@@ -363,6 +323,8 @@ def side_effect_followup_node(state: State):
 
     prompt = f"""
     # Context
+    지금까지 확인된 내용
+    - 문진 응답 내역: {checked}
     - 전체 대화 이력: {messages}
     - 복용 중인 약: {drugs}
     - 조회된 부작용 정보: {medicine_side_effect}
@@ -375,10 +337,11 @@ def side_effect_followup_node(state: State):
     부작용 원인 파악에 도움이 될 만한 추가 질문을 자연스럽게 이어서 물어봐줘.
 
     # Constraints
-    1. 인과성에 대한 최종 판단(약 때문인지 아닌지)은 하지 않고 이와 관련된 답변도 하지 않는다.
-    2. 약을 언제 먹었는지,약들을 같이 먹었는지, 약 먹고 부터 몇시간 뒤부터 아팠는지  등의 내용은 묻지 않는다.
-    3. 추가 질문은 1~2개 정도만 물어본다.
-    4. 간결하게 답변한다.
+    1. 이미 물어본 증상과 비슷한 증상은 다시 물어보지 않는다.
+    2. 인과성에 대한 최종 판단(약 때문인지 아닌지)은 하지 않고 이와 관련된 답변도 하지 않는다.
+    3. 약을 언제 먹었는지,약들을 같이 먹었는지, 약 먹고 부터 몇시간 뒤부터 아팠는지  등의 내용은 묻지 않는다.
+    4. 추가 질문은 1~2개 정도만 물어본다.
+    5. 간결하게 답변한다.
     """
     response = llm.invoke(prompt)
     return {
@@ -388,35 +351,42 @@ def side_effect_followup_node(state: State):
         "symptom_followup": True,
     }
 
-
-# 인터넷 검색 tool
+# 병용금기 조회 함수
 @tool
-def search_info_web(query: str) -> str:
-    """최신 정보가 필요하거나 추가적인 정보가 필요하다 판단 될 경우 실행. 인터넷 검색 도구 """
-    
-    tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-    
-    try:
-        # tavily AI 검색 실행 (한국어 및 신뢰성 높은 결과 위주)
-        response = tavily.search(
-            query=query,
-            search_depth="advanced",
-            max_results=3,
-            include_answer=True,
-        )
+def check_interaction_with_my_drugs(state: State, asked_drug_name: str) -> dict:
+    """약에 대한 병용 금기 정보가 필요한 경우 사용한다. (예시: 타이레놀 먹어도 돼?) """
+    my_product_codes = state["patient_info"].get("product_codes") or []
+    interaction_tool = make_check_interaction_tool(state)
 
-        # Tavily가 자체 요약한 AI 답변이 있으면 우선 활용
-        answer = response.get("answer", "")
-        results = response.get("results", [])
+    general_chat_llm = llm.bind_tools([
+        search_info_web,
+        interaction_tool,
+    ])
+    if not my_product_codes:
+        return {"found": False, "candidates": [], "interactions": []}
 
-        snippets = "\n".join(f"- [{r['title']}] {r['content']}" for r in results)
+    candidates = search_drug(asked_drug_name)
+    if not candidates:
+        return {"found": False, "candidates": [], "interactions": []}
 
-        return f"검색 요약: {answer}\n\n상세 출처 내용:\n{snippets}"
+    interactions = []
+    for candidate in candidates:
+        asked_product_code = candidate["product_code"]
+        for my_code in my_product_codes:
+            result = check_drug_interaction(my_code, asked_product_code)
+            if result:
+                for r in result:
+                    interactions.append({
+                        "asked_product_code": asked_product_code,
+                        "asked_drug_name": candidate["name"],
+                        **r,
+                    })
 
-    except Exception as e:
-        return f"웹 검색 중 오류가 발생했습니다: {str(e)}"
-
-
+    return {
+        "found": True,
+        "candidates": candidates,
+        "interactions": interactions,
+    }
 
 # 일반 대화 채팅 노드
 def general_chat_node(state: State):
@@ -439,46 +409,36 @@ def general_chat_node(state: State):
     3. 최신 정보나 사실 확인이 필요한 질문(오늘 날씨, 최근 뉴스, 일반 상식 등)이면 search_info_web 도구를 사용한다.
     4. 답변은 간결하게 한다.
     """
-    general_chat_llm = llm.bind_tools([search_info_web])
+
+    interaction_tool = make_check_interaction_tool(state)
+
+    general_chat_llm = llm.bind_tools([
+        search_info_web,
+        interaction_tool,
+    ])
     request_message = HumanMessage(content=prompt)
     response = general_chat_llm.invoke([request_message])
-
+    
     # LLM이 search_info_web을 호출했다면 실제로 실행하고, 그 결과를 반영해 최종 답변을 다시 생성한다.
     if response.tool_calls:
         tool_messages = []
+
         for tool_call in response.tool_calls:
             if tool_call["name"] == "search_info_web":
                 tool_result = search_info_web.invoke(tool_call["args"])
-                tool_messages.append(
-                    ToolMessage(content=tool_result, tool_call_id=tool_call["id"])
+
+            elif tool_call["name"] == "check_interaction_with_my_drugs":
+                tool_result = interaction_tool.invoke(tool_call["args"])
+
+            tool_messages.append(
+                ToolMessage(
+                    content=str(tool_result),
+                    tool_call_id=tool_call["id"],
                 )
-        response = general_chat_llm.invoke([request_message, response, *tool_messages])
+            )
 
-    return {"messages": [response]}
+        response = general_chat_llm.invoke(
+            [request_message, response, *tool_messages]
+        )
 
-# 병용금기 대답 노드
-def prohibited_chat_node(state: State):
-    patient_info = state.get("patient_info") or {}
-    
-    prompt = f"""
-    # Context
-    - 환자 정보
-        - 이름: {patient_info.get('name')}
-        - 나이: {patient_info.get('age')}
-        - 성별: {patient_info.get('gender')}
-        - 임신 여부: {patient_info.get('is_pregnant')}
-        - 복용 중인 약: {patient_info.get('drugs')}
-    - 전체 대화 이력: {state.get("messages", [])}
-    - 병용금기 내역: {state.get("prohibited_medicine")}
-
-    # Role
-    당신은 환자의 복약/부작용 상담을 돕는 어시스턴트다.
-
-    # Constraints
-    1. 병용금기 내역을 조회 후 답변한다.
-    2. 병용 금기 내역에 값이 없을경우 먹어도 된다고 판단한다.
-    3. 답변은 간결하게 한다.
-    4. 병용 금기 내역에 값이 없을경우 대화의 마지막에 항상! 붙여 답변한다.
-    """
-    response = llm.invoke(prompt)
     return {"messages": [response]}

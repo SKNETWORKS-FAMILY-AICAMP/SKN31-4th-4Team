@@ -3,6 +3,7 @@ from datetime import date, datetime
 from .db_connect import get_mysql_connection, get_neo4j_graph
 from tavily import TavilyClient
 from Chatbot.state import State
+from langchain_core.tools import tool
 
 def calc_age(birth_date) -> int:
     """'1942-08-15' 형태의 문자열 또는 date 객체를 받아 만 나이를 계산."""
@@ -224,67 +225,45 @@ def list_drug_contraindications(product_code: str) -> list[dict]:
     """
     return graph.query(query, params={"product_code": product_code})
 
-def check_interaction_with_my_drugs(state: State, asked_drug_name: str) -> dict:
-    my_product_codes = state["patient_info"].get("product_codes") or []
-    if not my_product_codes:
-        return {"found": False, "candidates": [], "interactions": []}
-
-    candidates = search_drug(asked_drug_name)
-    if not candidates:
-        return {"found": False, "candidates": [], "interactions": []}
-
-    interactions = []
-    for candidate in candidates:
-        asked_product_code = candidate["product_code"]
-        for my_code in my_product_codes:
-            result = check_drug_interaction(my_code, asked_product_code)
-            if result:
-                for r in result:
-                    interactions.append({
-                        "asked_product_code": asked_product_code,
-                        "asked_drug_name": candidate["name"],
-                        **r,
-                    })
-
-    return {
-        "found": True,
-        "candidates": candidates,
-        "interactions": interactions,
-    }
 
 
 
-def search_drug_info_web(drug_name: str, query_type: str = "효능 부작용") -> str:
+def make_check_interaction_tool(state: State):
+    @tool
+    def check_interaction_with_my_drugs(asked_drug_name: str) -> dict:
+        """사용자가 특정 약을 복용해도 되는지, 현재 복용 중인 약과 함께 복용 가능한지 묻는 경우 사용합니다.
+    질문한 약물과 환자의 현재 복용 약물 간 병용금기를 조회합니다.
     """
-    약물에 대해 더 풍부하고 상세한 텍스트 정보가 필요하다고 판단될 때 인터넷에서 검색합니다.
-    DB 조회만으로 정보가 부족하거나, 환자에게 구체적인 효능/효과, 실제 부작용 발생 증상, 
-    올바른 복용법 및 주의사항 등을 자세히 설명해야 할 때 적극적으로 호출하세요.
-    
-    Args:
-        drug_name: 검색할 약품명 또는 성분명 (예: "타이레놀", "아세트아미노펜")
-        query_type: 검색 목적 (예: "부작용", "효능/효과", "용법용량", "주의사항")
-    """
-    api_key = os.getenv("TAVILY_API_KEY")
-    tavily = TavilyClient(api_key=api_key)
-    search_query = f"약품 {drug_name} {query_type} 의학정보"
+        my_product_codes = state["patient_info"].get("product_codes") or []
+        ...
+        return ...
+    return check_interaction_with_my_drugs
+
+
+
+# 인터넷 검색 tool
+@tool
+def search_info_web(query: str) -> str:
+    """최신 정보가 필요하거나 추가적인 정보가 필요하다 판단 될 경우 실행. 인터넷 검색 도구 """
+
+    tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
     
     try:
         # tavily AI 검색 실행 (한국어 및 신뢰성 높은 결과 위주)
         response = tavily.search(
-            query=search_query,
+            query=query,
             search_depth="advanced",
             max_results=3,
-            include_answer=True
+            include_answer=True,
         )
-        
+
         # Tavily가 자체 요약한 AI 답변이 있으면 우선 활용
         answer = response.get("answer", "")
         results = response.get("results", [])
-        
-        snippets = "\n".join([f"- [{r['title']}] {r['content']}" for r in results])
-        
-        output = f"🔍 **검색 요약**: {answer}\n\n**상세 출처 내용**:\n{snippets}"
-        return output
-        
+
+        snippets = "\n".join(f"- [{r['title']}] {r['content']}" for r in results)
+
+        return f"검색 요약: {answer}\n\n상세 출처 내용:\n{snippets}"
+
     except Exception as e:
         return f"웹 검색 중 오류가 발생했습니다: {str(e)}"
