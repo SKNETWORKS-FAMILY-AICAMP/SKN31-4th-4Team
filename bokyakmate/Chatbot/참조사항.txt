@@ -15,3 +15,5 @@ chechk_pointer에 올라간 memory를 토대로 저장하는 부분은 session_s
 6. 사용자가 장시간 답이 없거나, 강제 종료 했을 경우 session_end_node실행 state 변경 후 종료.
 7.  4-3, 5 ,6 에서 변경된 state를 신호로 end_session_and_summarize 함수 실행시점 파악.
 8. 6번 종료 이벤트를 제외 한 나머지 종료 이벤트는 대화 섹션을 종료하지 않음.
+
+.general_chat_node로 이동 하는 구간을 prohibited_router_node 로 변경 병용 금기 분기 추가.

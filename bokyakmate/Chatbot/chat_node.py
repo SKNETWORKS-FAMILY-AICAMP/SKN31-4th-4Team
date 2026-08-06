@@ -392,8 +392,10 @@ def side_effect_followup_node(state: State):
 # 인터넷 검색 tool
 @tool
 def search_info_web(query: str) -> str:
+    """최신 정보가 필요하거나 추가적인 정보가 필요하다 판단 될 경우 실행. 인터넷 검색 도구 """
+    
     tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-
+    
     try:
         # tavily AI 검색 실행 (한국어 및 신뢰성 높은 결과 위주)
         response = tavily.search(
