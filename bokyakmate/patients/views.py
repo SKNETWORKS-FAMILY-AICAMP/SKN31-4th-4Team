@@ -30,7 +30,7 @@ from asgiref.sync import async_to_sync
 import sqlite3
 import json
 from Chatbot.builder import build_graph, build_initial_state
-
+from services.end_summary import process_chat_summary
 
 def _check_owner(request, patient_id):
     """로그인한 사용자가 이 환자 본인인지 확인 (다른 환자 URL을 직접 쳐서 못 들어가게)."""

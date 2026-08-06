@@ -537,3 +537,27 @@ body {
     padding: 12px 14px; font-size: 12.5px; color: var(--ink); cursor: pointer;
 }
 .suggested-q-card:hover { border-color: var(--sky); }
+
+/* chat bot 말풍선/ css */
+.typing-bubble {
+    display: flex;
+    gap: 4px;
+    padding: 10px 14px;
+    background: #F1F5F8;
+    border-radius: 16px;
+    width: fit-content;
+}
+.typing-bubble span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #9CA9B4;
+    animation: typing-bounce 1.2s infinite ease-in-out;
+}
+.typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+.typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
