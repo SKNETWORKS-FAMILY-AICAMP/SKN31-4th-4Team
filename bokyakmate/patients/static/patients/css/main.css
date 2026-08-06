@@ -620,3 +620,28 @@ body {
     font-size:13px;
     color:#666;
 }
+
+/* ============== 월별 복약 통계 ================ */
+.month-summary{
+    margin-top:25px;
+    padding:18px;
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06);
+}
+
+.month-summary h3{
+    margin-bottom:15px;
+    font-size:17px;
+}
+
+.summary-item{
+    display:flex;
+    justify-content:space-between;
+    padding:8px 0;
+    border-bottom:1px solid #eee;
+}
+
+.summary-item:last-child{
+    border-bottom:none;
+}

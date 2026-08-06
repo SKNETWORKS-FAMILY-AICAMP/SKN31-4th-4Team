@@ -130,6 +130,18 @@ def dosing_calendar(request, patient_id):
         )
     )
 
+    # ===== 월간 통계 =====
+    done_logs = sum(1 for log in logs if log.status == "done")
+    missed_logs = sum(1 for log in logs if log.status == "missed")
+    pending_logs = sum(1 for log in logs if log.status == "pending")
+
+    total_logs = len(logs)
+
+    if total_logs > 0:
+        monthly_progress = int(done_logs * 100 / total_logs)
+    else:
+        monthly_progress = 0
+
     # 날짜별로 그 날의 복용상태를 모은다 (하루에 여러 건이면 '모두 완료'일 때만 done)
     status_by_day = {}
     for log in logs:
@@ -186,6 +198,10 @@ def dosing_calendar(request, patient_id):
         "done_count": done_count,
         "total_count": total_count,
         "progress": progress,
+        "monthly_progress": monthly_progress,
+        "done_logs": done_logs,
+        "missed_logs": missed_logs,
+        "pending_logs": pending_logs,
         "prev_url": f"?year={prev_month.year}&month={prev_month.month}&date={selected_date}",
         "next_url": f"?year={next_month_date.year}&month={next_month_date.month}&date={selected_date}",
         "main_url": reverse("patients:main", args=[patient_id]),

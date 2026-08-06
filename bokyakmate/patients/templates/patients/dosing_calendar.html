@@ -84,6 +84,32 @@
             {% empty %}
             <div class="empty-state">오늘 예정된 복약이 없어요.</div>
             {% endfor %}
+            
+            <div class="month-summary">
+
+                <h3>📊 이번 달 복약 통계</h3>
+
+                <div class="summary-item">
+                    <span>복약률</span>
+                    <strong>{{ monthly_progress }}%</strong>
+                </div>
+
+                <div class="summary-item">
+                    <span>복용 완료</span>
+                    <strong>{{ done_logs }}회</strong>
+                </div>
+
+                <div class="summary-item">
+                    <span>미복용</span>
+                    <strong>{{ missed_logs }}회</strong>
+                </div>
+
+                <div class="summary-item">
+                    <span>예정</span>
+                    <strong>{{ pending_logs }}회</strong>
+                </div>
+
+            </div>
         </div>
         {% bottom_nav "calendar" %}
     </div>
