@@ -6,6 +6,7 @@
 <meta charset="UTF-8">
 <title>AI 상담 · 복약메이트</title>
 <link rel="stylesheet" href="{% static 'patients/css/main.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
 </head>
 <body>
 
@@ -53,7 +54,7 @@
             {% for msg in messages %}
                 <div class="msg-row {{ msg.role }}">
                     {% if msg.role == "assistant" %}<div class="msg-avatar">🩺</div>{% endif %}
-                    <div class="msg-bubble">{{ msg.content }}</div>
+                    <div class="msg-bubble markdown-body">{{ msg.content|linebreaksbr }}</div>
                     {% if msg.role == "patient" %}<div class="msg-avatar">🧑</div>{% endif %}
                 </div>
 
@@ -98,9 +99,15 @@
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const md = window.markdownit({
+    breaks: true,linkify: true});
     const form = document.getElementById('chat-form');
     const input = document.getElementById('user-input');
     const chatBody = document.getElementById('chat-body');
+
+    document.querySelectorAll('.markdown-body').forEach(el => {
+    el.innerHTML = md.render(el.textContent);
+    });
 
     form.addEventListener('submit', function(e) {
         e.preventDefault(); 
@@ -144,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // --------------------------------------------------
     // 화면에 말풍선을 그려주는 도우미 함수들
     // --------------------------------------------------
-    function appendMyMessage(text) {
+    function appeqndMyMessage(text) {
         // 기존 HTML 디자인을 그대로 가져와서 텍스트만 쏙 끼워 넣습니다.
         const html = `
             <div class="msg-row patient">
@@ -159,12 +166,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const html = `
             <div class="msg-row assistant">
                 <div class="msg-avatar">🩺</div>
-                <div class="msg-bubble">${text}</div>
+                <div class="msg-bubble markdown-body">
+                    ${md.render(text)}
+                </div>
             </div>`;
+
         chatBody.insertAdjacentHTML('beforeend', html);
         scrollToBottom();
     }
-
+    
     // 채팅이 길어지면 스크롤을 맨 아래로 내려주는 함수
     function scrollToBottom() {
         chatBody.scrollTop = chatBody.scrollHeight;
