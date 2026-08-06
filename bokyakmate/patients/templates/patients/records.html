@@ -34,29 +34,23 @@
             <div class="empty-state">처방 기록이 없어요.</div>
             {% endfor %}
 
-        {% else %}
-            {# ===== 병원 방문 기록 탭 — 의사 정보 없이, 환자가 알아야 할 정보만 ===== #}
-            {% for presc in prescriptions %}
-            <div class="record-card">
-                <div class="title">{{ presc.prescribed_at|date:"Y.m.d" }}</div>
-                <div class="meta">{% if presc.diagnosis %}{{ presc.diagnosis }}·{{ presc.hospital.hospital_name }}{% endif %}</div>
+            {% else %}
+                    {# ===== 병원 방문 기록 탭 ===== #}
+                    {% for presc in prescriptions %}
+                    <div class="record-card">
+                        <div class="title">{{ presc.prescribed_at|date:"Y.m.d" }}</div>
+                        <div class="meta">
+                            {{ presc.doctor.name }} 선생님 ({{ presc.doctor.department }}) · {% if presc.diagnosis %}{{ presc.diagnosis }} {% endif %}
+                        </div>
 
-                <!-- {% if presc.details.all %}
-                <div class="visit-drug-list">
-                    {% for d in presc.details.all %}
-                    <span class="tag-check">{{ d.drug.drug_name }}</span>
+                        {% if presc.note %}
+                        <div class="meta visit-note">특이사항: {{ presc.note }}</div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div class="empty-state">아직 방문 기록이 없어요.</div>
                     {% endfor %}
-                </div>
-                {% endif %} -->
-
-                {% if presc.note %}
-                <div class="meta visit-note">{{ presc.note }}</div>
                 {% endif %}
-            </div>
-            {% empty %}
-            <div class="empty-state">아직 방문 기록이 없어요.</div>
-            {% endfor %}
-        {% endif %}
     </div>
 
     {% bottom_nav "records" %}
