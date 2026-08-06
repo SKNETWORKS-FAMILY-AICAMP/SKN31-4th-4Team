@@ -17,12 +17,20 @@ from django.utils import timezone
 from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
 
+
 from .models import (
     Patient, ChatSession, Prescription, PrescriptionDetail,
     DosingLog,SymptomLog, Hospital
 )
 
-# from .models import (PatientCondition, Condition,)
+# 챗봇 쪽 
+from django.http import JsonResponse
+from langchain_core.messages import HumanMessage
+from asgiref.sync import async_to_sync
+import sqlite3
+import json
+from Chatbot.builder import build_graph, build_initial_state
+
 
 def _check_owner(request, patient_id):
     """로그인한 사용자가 이 환자 본인인지 확인 (다른 환자 URL을 직접 쳐서 못 들어가게)."""
@@ -277,34 +285,68 @@ def chat_history(request, patient_id):
 
 @login_required
 def chatbot_start(request, patient_id):
-    """실제 챗봇 파이프라인(pipeline.py) 연동은 다음 라운드.
-    지금은 화면 확인용으로 두 상태를 보여준다:
-      ?state=chat  -> 대화가 진행된 상태(데모 메시지+근거)
-      기본값        -> 최초진입 상태(추천 질문 카드)
-    """
     patient = get_object_or_404(Patient, patient_id=patient_id)
 
+    thread_id = f"patient-{patient_id}"
+    config = {"configurable": {"thread_id": thread_id}}
+    graph = build_graph()
+    current_state = graph.get_state(config) 
+
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            user_message = data.get("user_input", "")
+            
+            if not current_state.values:
+                conn = sqlite3.connect("langgraph_checkpoint.db", check_same_thread=False)
+                input_data = build_initial_state(conn, str(patient_id))
+                
+                # ★ 딕셔너리를 버리고, 랭그래프 전용 HumanMessage 객체로 포장합니다!
+                input_data["messages"] = [HumanMessage(content=user_message)]
+                input_data["patient_id"] = str(patient_id) 
+            else:
+                input_data = {
+                    # ★ 여기도 마찬가지로 객체로 포장!
+                    "messages": [HumanMessage(content=user_message)],
+                    "patient_id": str(patient_id) 
+                }
+
+            result = graph.invoke(input_data, config=config)
+            
+            # (아까 수정한 아래 코드는 그대로 두시면 됩니다!)
+            last_message = result["messages"][-1]
+            if isinstance(last_message, dict):
+                ai_reply = last_message.get("content", "")
+            else:
+                ai_reply = last_message.content
+                
+            return JsonResponse({"reply": ai_reply})
+        except Exception as e:
+            return JsonResponse({"error": f"모델 처리 중 오류가 발생했습니다: {str(e)}"}, status=500)
+
+    # GET 요청: 여기서 current_state를 안전하게 부를 수 있습니다.
     messages = []
-    if request.GET.get("state") == "chat":
-        messages = [
-            {"role": "patient", "content": "콘서타 먹고 나서 머리가 좀 아파요"},
-            {
-                "role": "assistant",
-                "content": "말씀하신 약(콘서타)의 이상반응에 두통이 보고되어 있어요(0.6%). "
-                           "증상이 심하거나 계속되면 의료진과 상담해주세요.",
-                "citations": [
-                    {"source_label": "사용상의주의사항 · 4. 이상반응",
-                     "snippet": "위약 투여한 환자 중 두통 및 불면증 사례가 보고됨(0.6%)"},
-                ],
-            },
-        ]
+    if current_state.values and "messages" in current_state.values:
+        for msg in current_state.values["messages"]:
+            # ★ 수정할 부분: 과거 메시지가 딕셔너리일 때와 객체일 때 모두 안전하게 꺼내기
+            if isinstance(msg, dict):
+                msg_type = msg.get("type", "")
+                msg_content = msg.get("content", "")
+            else:
+                msg_type = msg.type
+                msg_content = msg.content
+
+            role = "patient" if msg_type == "human" else "assistant"
+            messages.append({
+                "role": role,
+                "content": msg_content
+            })
 
     return render(request, "patients/chatbot.html", {
         "patient": patient,
         "messages": messages,
-        "main_url": reverse("patients:main", args=[patient_id]),  # 상단 뒤로가기용, 하단바와 별개
+        "main_url": reverse("patients:main", args=[patient_id]),
     })
-
 
 # ------------------------------------------------------------------
 # 온보딩 (최초진입) — 명세서의 "최초진입" -- 7단계

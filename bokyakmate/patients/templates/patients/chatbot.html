@@ -16,7 +16,7 @@
     </div>
 
     <div class="chat-screen">
-        <div class="chat-body">
+        <div class="chat-body" id="chat-body">
 
             {% if not messages %}
             {# ===== 최초진입 상태 ===== #}
@@ -27,17 +27,17 @@
 
                 <div class="chat-start-card">무엇을 도와드릴까요?</div>
 
-                <div class="suggested-q">
-                    <button type="button" class="suggested-q-card" onclick="document.querySelector('.chat-input-bar input').value=this.textContent; document.querySelector('.chat-input-bar').submit();">
-                        약 부작용이 있어요
-                    </button>
-                    <button type="button" class="suggested-q-card" onclick="document.querySelector('.chat-input-bar input').value=this.textContent; document.querySelector('.chat-input-bar').submit();">
-                        약에 대해 궁금한 게 있어요
-                    </button>
-                    <button type="button" class="suggested-q-card" onclick="document.querySelector('.chat-input-bar input').value=this.textContent; document.querySelector('.chat-input-bar').submit();">
-                        약의 효능에 대해 궁금해요
-                    </button>
-                </div>
+            <div class="suggested-q">
+                <button type="button" class="suggested-q-card" onclick="document.getElementById('user-input').value=this.textContent; document.querySelector('.chat-send-btn').click();">
+                    약 부작용이 있어요
+                </button>
+                <button type="button" class="suggested-q-card" onclick="document.getElementById('user-input').value=this.textContent; document.querySelector('.chat-send-btn').click();">
+                    약에 대해 궁금한 게 있어요
+                </button>
+                <button type="button" class="suggested-q-card" onclick="document.getElementById('user-input').value=this.textContent; document.querySelector('.chat-send-btn').click();">
+                    약의 효능에 대해 궁금해요
+                </button>
+            </div>
             </div>
             {% else %}
             {# ===== 대화 진행 상태 ===== #}
@@ -87,14 +87,89 @@
 
         </div>
 
-        <form class="chat-input-bar" method="post">
+        <form class="chat-input-bar" id="chat-form">
             {% csrf_token %}
-            <input type="text" name="user_input" placeholder="예) 약 먹고 두통이 있어요" autocomplete="off">
+            <input type="text" id="user-input" name="user_input" placeholder="예) 약 먹고 두통이 있어요" autocomplete="off">
             <button type="submit" class="chat-send-btn">↑</button>
         </form>
+
     </div>
     {% bottom_nav "chat" %}
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('user-input');
+    const chatBody = document.getElementById('chat-body');
 
+    form.addEventListener('submit', function(e) {
+        e.preventDefault(); 
+
+        const message = input.value.trim();
+        if (!message) return;
+
+        // ==========================================
+        // ⭐ 새로 추가할 부분: 초기 화면 지우기
+        // ==========================================
+        const introBox = document.querySelector('.chat-intro');
+        if (introBox) {
+            introBox.remove(); // 화면에서 완전히 날려버립니다.
+        }
+        // ==========================================
+
+        appendMyMessage(message);
+        input.value = '';
+
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        fetch(window.location.pathname, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ 'user_input': message })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // 에러가 있으면 에러 메시지를, 성공하면 답변을 출력
+            if (data.error) {
+                appendAiMessage("서버 에러: " + data.error); 
+            } else {
+                appendAiMessage(data.reply); 
+            }
+        })
+        .catch(error => console.error('통신 에러:', error));
+    });
+        // --------------------------------------------------
+    // 화면에 말풍선을 그려주는 도우미 함수들
+    // --------------------------------------------------
+    function appendMyMessage(text) {
+        // 기존 HTML 디자인을 그대로 가져와서 텍스트만 쏙 끼워 넣습니다.
+        const html = `
+            <div class="msg-row patient">
+                <div class="msg-bubble">${text}</div>
+                <div class="msg-avatar">🧑</div>
+            </div>`;
+        chatBody.insertAdjacentHTML('beforeend', html);
+        scrollToBottom();
+    }
+
+    function appendAiMessage(text) {
+        const html = `
+            <div class="msg-row assistant">
+                <div class="msg-avatar">🩺</div>
+                <div class="msg-bubble">${text}</div>
+            </div>`;
+        chatBody.insertAdjacentHTML('beforeend', html);
+        scrollToBottom();
+    }
+
+    // 채팅이 길어지면 스크롤을 맨 아래로 내려주는 함수
+    function scrollToBottom() {
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+}); // <--- ★ 여기가 빠져서 에러가 났던 겁니다! 이 줄이 꼭 있어야 해요.
+</script>
 </body>
 </html>
