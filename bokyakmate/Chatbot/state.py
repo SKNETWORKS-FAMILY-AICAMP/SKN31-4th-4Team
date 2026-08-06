@@ -1,7 +1,5 @@
-from typing import TypedDict, Annotated, Literal, Optional
-from langchain_core.messages import BaseMessage
-from pydantic import BaseModel, Field
-from langgraph.graph.message import add_messages
+from typing import TypedDict, Optional
+from pydantic import BaseModel
 from typing import Any, Dict, List, Optional, TypedDict
 
 class PatientInfo(TypedDict):
@@ -32,7 +30,9 @@ class State(TypedDict):
     sufficient_info: bool
     system_signal: Optional[str]
     end_signal: Optional[str]
-
+    prohibited_medicine: None
+    need_prohibited_check: bool
+    mentioned_drug_name: str
 
 class ChatRequest(BaseModel):
     query: str

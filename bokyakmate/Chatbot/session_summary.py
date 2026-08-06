@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
-from bokyakmate.Chatbot.builder import graph  # 메인 문진 그래프의 checkpointer를 그대로 재사용
+from Chatbot.builder import graph  # 메인 문진 그래프의 checkpointer를 그대로 재사용
 
 llm = ChatOpenAI(model="gpt-5.4-mini")
 

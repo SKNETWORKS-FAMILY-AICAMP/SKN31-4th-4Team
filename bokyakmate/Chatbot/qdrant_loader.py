@@ -1,6 +1,4 @@
-
 import os
-import time
 from dotenv import load_dotenv
 from langchain_qdrant import QdrantVectorStore
 from langchain_openai import OpenAIEmbeddings

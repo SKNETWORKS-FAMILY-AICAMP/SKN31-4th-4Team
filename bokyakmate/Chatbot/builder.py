@@ -13,6 +13,10 @@ from .chat_node import (
     followup_router,
     session_end_node,
     symptom_summary_node,
+    prohibited_router_node,
+    prohibited_medicine_node,
+    prohibited_chat_node,
+    prohibited_router
 )
 from .db_loader import load_initial_state_data
 from .state import State
@@ -29,6 +33,11 @@ def build_graph():
     graph.add_node("followup_gate_node", followup_gate_node)
     graph.add_node("session_end_node", session_end_node)
     graph.add_node("symptom_summary_node", symptom_summary_node)
+    graph.add_node("prohibited_router_node",prohibited_router_node)
+    graph.add_node("prohibited_medicine_node",prohibited_medicine_node)
+    graph.add_node("prohibited_chat_node",prohibited_chat_node)
+
+
 
     graph.add_conditional_edges(
         START,
@@ -44,7 +53,7 @@ def build_graph():
         router,
         {
             "medicine_node": "medicine_node",
-            "general_chat_node": "general_chat_node",  
+            "prohibited_router_node": "prohibited_router_node",  
         }
     )
     graph.add_conditional_edges(
@@ -52,17 +61,22 @@ def build_graph():
         followup_router,
         {
             "side_effect_followup_node": "side_effect_followup_node",
-            "general_chat_node": "general_chat_node",
+            "prohibited_router_node": "prohibited_router_node",
             "symptom_summary_node": "symptom_summary_node",
         }
     )
+    graph.add_conditional_edges("prohibited_router_node",prohibited_router,{
+        "prohibited_medicine_node": "prohibited_medicine_node",
+        "general_chat_node":"general_chat_node"
+    })
+    graph.add_edge("prohibited_medicine_node","prohibited_chat_node")
     graph.add_edge("medicine_node", "side_effect_node")
     graph.add_edge("side_effect_node", END)
     graph.add_edge("side_effect_followup_node", END)
     graph.add_edge("general_chat_node", END)
     graph.add_edge("session_end_node", END)
     graph.add_edge("symptom_summary_node", END)
-
+    graph.add_edge("prohibited_chat_node",END)
     conn = sqlite3.connect("langgraph_checkpoint.db", check_same_thread=False)
     memory = SqliteSaver(conn)
 
@@ -86,5 +100,7 @@ def build_initial_state(conn,patient_id: str) -> State:
         "sufficient_info": False,
         "system_signal": None,
         "end_signal": None,
+        "need_prohibited_check":False,
+        "prohibited_medicine": None
     }
 
