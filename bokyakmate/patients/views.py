@@ -108,6 +108,16 @@ def dosing_calendar(request, patient_id):
     patient = get_object_or_404(Patient, patient_id=patient_id)
 
     today = timezone.localdate()
+    selected_date = request.GET.get("date")
+
+    if selected_date:
+        selected_date = datetime.strptime(
+            selected_date,
+            "%Y-%m-%d"
+        ).date()
+    else:
+        selected_date = today
+
     year = int(request.GET.get("year", today.year))
     month = int(request.GET.get("month", today.month))
 
@@ -144,13 +154,23 @@ def dosing_calendar(request, patient_id):
                 statuses = status_by_day.get(day)
                 week_cells.append({
                     "day": day,
+                    "date": date(year, month, day),                    
                     "status": day_status(statuses) if statuses else "none",
                     "is_today": date(year, month, day) == today,
                 })
         weeks.append(week_cells)
+    todays_logs = DosingLog.objects.filter(
+        patient=patient,
+        scheduled_at__date=selected_date
+    ).select_related("prescription_detail__drug")
 
-    todays_logs = DosingLog.objects.filter(patient=patient, scheduled_at__date=today) \
-        .select_related("prescription_detail__drug")
+    total_count = todays_logs.count()
+    done_count = todays_logs.filter(status="done").count()
+
+    if total_count > 0:
+        progress = int(done_count * 100 / total_count)
+    else:
+        progress = 0
 
     prev_month = (datetime(year, month, 1) - timezone.timedelta(days=1))
     next_month_date = datetime(year, month, 28) + timezone.timedelta(days=7)
@@ -161,9 +181,13 @@ def dosing_calendar(request, patient_id):
         "weeks": weeks,
         "year": year,
         "month": month,
+        "selected_date": selected_date,
         "todays_logs": todays_logs,
-        "prev_url": f"?year={prev_month.year}&month={prev_month.month}",
-        "next_url": f"?year={next_month_date.year}&month={next_month_date.month}",
+        "done_count": done_count,
+        "total_count": total_count,
+        "progress": progress,
+        "prev_url": f"?year={prev_month.year}&month={prev_month.month}&date={selected_date}",
+        "next_url": f"?year={next_month_date.year}&month={next_month_date.month}&date={selected_date}",
         "main_url": reverse("patients:main", args=[patient_id]),
     }
     return render(request, "patients/dosing_calendar.html", context)
@@ -180,6 +204,15 @@ def mark_dose_taken(request, patient_id, log_id):
         log.save()
     if request.GET.get("next") == "main":
         return redirect("patients:main", patient_id=patient_id)
+
+    selected_date = request.GET.get("date")
+
+    if selected_date:
+        return redirect(
+            f"{reverse('patients:dosing_calendar', args=[patient_id])}"
+            f"?date={selected_date}"
+        )
+
     return redirect("patients:dosing_calendar", patient_id=patient_id)
 
 
@@ -635,4 +668,35 @@ def onboarding_health_additional(request):
         {
             "patient": patient,
         },
+    )
+
+def calendar_day(request, patient_id, selected_date):
+
+    patient = get_object_or_404(
+        Patient,
+        patient_id=patient_id
+    )
+
+    target_date = datetime.strptime(
+        selected_date,
+        "%Y-%m-%d"
+    ).date()
+
+    logs = DosingLog.objects.filter(
+        patient=patient,
+        scheduled_at__date=target_date
+    ).select_related(
+        "prescription_detail__drug"
+    ).order_by("scheduled_at")
+
+    context = {
+        "patient": patient,
+        "target_date": target_date,
+        "logs": logs,
+    }
+
+    return render(
+        request,
+        "patients/calendar_day.html",
+        context
     )

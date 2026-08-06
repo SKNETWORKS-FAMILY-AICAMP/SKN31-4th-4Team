@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>{{ target_date }} 복약 일정</h2>
+
+{% if logs %}
+
+    {% for log in logs %}
+
+        <div class="card">
+
+            <h4>{{ log.scheduled_at|time:"H:i" }}</h4>
+
+            <p>{{ log.prescription_detail.drug.drug_name }}</p>
+
+            <p>{{ log.prescription_detail.drug.dosage }}</p>
+
+            <p>{{ log.status }}</p>
+
+        </div>
+
+        <br>
+
+    {% endfor %}
+
+{% else %}
+
+    <p>복약 일정이 없습니다.</p>
+
+{% endif %}
+
+{% endblock %}

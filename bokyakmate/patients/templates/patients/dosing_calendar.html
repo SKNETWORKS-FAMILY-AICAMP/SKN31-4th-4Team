@@ -29,7 +29,10 @@
             {% for week in weeks %}
                 {% for cell in week %}
                     {% if cell %}
-                        <div class="cal-cell {% if cell.is_today %}today{% endif %} status-{{ cell.status }}">{{ cell.day }}</div>
+                        <a href="?year={{ year }}&month={{ month }}&date={{ cell.date|date:'Y-m-d' }}"
+                        class="cal-cell {% if cell.is_today %}today{% endif %} status-{{ cell.status }}">
+                            {{ cell.day }}
+                        </a>
                     {% else %}
                         <div class="cal-cell"></div>
                     {% endif %}
@@ -38,7 +41,31 @@
         </div>
 
         <div class="today-list">
-            <p class="section-title">오늘의 복약</p>
+            <p class="section-title">
+                {{ selected_date|date:"Y년 m월 d일" }} 복약
+            </p>
+            
+                <div class="progress-area">
+
+                    <div class="progress-text">
+                        {{ done_count }} / {{ total_count }} 완료
+                    </div>
+
+                    <div class="progress-bar">
+
+                        <div
+                            class="progress-fill"
+                            style="width: {{ progress }}%;"
+                        ></div>
+
+                    </div>
+
+                    <div class="progress-percent">
+                        {{ progress }}%
+                    </div>
+
+                </div>                
+            
             {% for log in todays_logs %}
             <div class="dose-item">
                 <div>
@@ -48,7 +75,7 @@
                 {% if log.status == "done" %}
                     <span class="dose-btn done">✓ 복용완료</span>
                 {% else %}
-                    <form method="post" action="{% url 'patients:mark_dose_taken' patient.patient_id log.id %}">
+                    <form method="post" action="{% url 'patients:mark_dose_taken' patient.patient_id log.id %}?date={{ selected_date|date:'Y-m-d' }}">
                         {% csrf_token %}
                         <button type="submit" class="dose-btn todo">복용했어요</button>
                     </form>

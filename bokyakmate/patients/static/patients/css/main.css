@@ -588,3 +588,35 @@ body {
 .scroll-body::-webkit-scrollbar-thumb:hover {
     background-color: #9CA9B4;
 }
+
+/* ================= 복약 진행률 ================= */
+.progress-area{
+    margin:15px 0 20px;
+}
+
+.progress-text{
+    font-size:14px;
+    margin-bottom:8px;
+    font-weight:600;
+}
+
+.progress-bar{
+    width:100%;
+    height:10px;
+    background:#e5e7eb;
+    border-radius:999px;
+    overflow:hidden;
+}
+
+.progress-fill{
+    height:100%;
+    background:#4CAF50;
+    transition:width .3s;
+}
+
+.progress-percent{
+    text-align:right;
+    margin-top:6px;
+    font-size:13px;
+    color:#666;
+}

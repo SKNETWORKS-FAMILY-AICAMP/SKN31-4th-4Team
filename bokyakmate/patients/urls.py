@@ -21,4 +21,5 @@ urlpatterns = [
     path("<str:patient_id>/mypage/", views.mypage, name="mypage"),
     path("<str:patient_id>/chatbot/", views.chatbot_start, name="chatbot_start"),
     path("<str:patient_id>/chatbot/end", views.chatbot_end, name="chatbot_end"),
+    path("<str:patient_id>/calendar/<str:date>/", views.calendar_day, name="calendar_day"),
 ]
