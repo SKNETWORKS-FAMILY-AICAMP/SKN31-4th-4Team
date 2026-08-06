@@ -130,7 +130,18 @@ def dosing_calendar(request, patient_id):
         )
     )
 
-    # ===== 월간 통계 =====
+    # 자동 미복용 처리
+    now = timezone.now()
+
+    for log in logs:
+        if (
+            log.status == "pending"
+            and log.scheduled_at < now
+        ):
+            log.status = "missed"
+            log.save(update_fields=["status"])
+
+    # 월간 통계
     done_logs = sum(1 for log in logs if log.status == "done")
     missed_logs = sum(1 for log in logs if log.status == "missed")
     pending_logs = sum(1 for log in logs if log.status == "pending")
@@ -171,10 +182,19 @@ def dosing_calendar(request, patient_id):
                     "is_today": date(year, month, day) == today,
                 })
         weeks.append(week_cells)
+
     todays_logs = DosingLog.objects.filter(
         patient=patient,
         scheduled_at__date=selected_date
     ).select_related("prescription_detail__drug")
+
+    for log in todays_logs:
+        if (
+            log.status == "pending"
+            and log.scheduled_at < timezone.now()
+        ):
+            log.status = "missed"
+            log.save(update_fields=["status"])
 
     total_count = todays_logs.count()
     done_count = todays_logs.filter(status="done").count()
