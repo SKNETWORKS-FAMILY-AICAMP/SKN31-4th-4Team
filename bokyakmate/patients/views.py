@@ -7,14 +7,14 @@ patients/views.py
 불안정한 패턴이라 피한다).
 """
 import calendar
-from datetime import date
+from datetime import datetime
+import re
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
 from decimal import Decimal
-from datetime import datetime
 from django.core.exceptions import ObjectDoesNotExist
 
 from .models import (
@@ -22,13 +22,12 @@ from .models import (
     DosingLog,SymptomLog, Hospital
 )
 
+# from .models import (PatientCondition, Condition,)
 
 def _check_owner(request, patient_id):
     """로그인한 사용자가 이 환자 본인인지 확인 (다른 환자 URL을 직접 쳐서 못 들어가게)."""
-    # [수정] models.py에서 Patient.user의 related_name은 "patient"다 (patient_profile 아님).
-    patient_profile = getattr(request.user, "patient", None)
-    return request.user.is_authenticated and patient_profile \
-        and patient_profile.patient_id == patient_id
+    return request.user.is_authenticated and getattr(request.user, "patient_profile", None) \
+        and request.user.Patient.patient_id == patient_id
 
 
 @login_required
@@ -133,15 +132,15 @@ def dosing_calendar(request, patient_id):
                 week_cells.append({
                     "day": day,
                     "status": day_status(statuses) if statuses else "none",
-                    "is_today": date(year, month, day) == today,
+                    "is_today": datetime(year, month, day) == today,
                 })
         weeks.append(week_cells)
 
     todays_logs = DosingLog.objects.filter(patient=patient, scheduled_at__date=today) \
         .select_related("prescription_detail__drug")
 
-    prev_month = (date(year, month, 1) - timezone.timedelta(days=1))
-    next_month_date = date(year, month, 28) + timezone.timedelta(days=7)
+    prev_month = (datetime(year, month, 1) - timezone.timedelta(days=1))
+    next_month_date = datetime(year, month, 28) + timezone.timedelta(days=7)
     next_month_date = next_month_date.replace(day=1)
 
     context = {
@@ -179,7 +178,9 @@ def records(request, patient_id):
 
     prescriptions = (
         Prescription.objects.filter(patient=patient)
+        .select_related("hospital")           
         .prefetch_related("details__drug")
+        .order_by("-prescribed_at")
     )
 
     context = {
@@ -190,32 +191,69 @@ def records(request, patient_id):
     }
     return render(request, "patients/records.html", context)
 
+# @login_required
+# def mypage(request, patient_id):
+#     patient = get_object_or_404(Patient, patient_id=patient_id)
+#     all_conditions = Condition.objects.all()
+
+#     if request.method == "POST":
+#         patient.is_pregnant = request.POST.get("is_pregnant") == "on"
+#         etc = request.POST.get("etc", "").strip()
+#         patient.note = etc  # note는 이제 순수 '기타' 텍스트만
+#         patient.save()
+
+#         selected_codes = request.POST.getlist("conditions")
+#         PatientCondition.objects.filter(patient=patient).delete()
+#         PatientCondition.objects.bulk_create([
+#             PatientCondition(patient=patient, condition_id=code) for code in selected_codes
+#         ])
+
+#         return redirect("patients:mypage", patient_id=patient_id)
+
+#     my_condition_codes = list(
+#         PatientCondition.objects.filter(patient=patient).values_list("condition_id", flat=True)
+#     )
+
+#     context = {
+#         "patient": patient,
+#         "main_url": reverse("patients:main", args=[patient_id]),
+#         "all_conditions": all_conditions,
+#         "my_condition_codes": my_condition_codes,
+#         "etc_value": patient.note,
+#     }
+#     return render(request, "patients/mypage.html", context)
 
 @login_required
 def mypage(request, patient_id):
-    """마이페이지 - 기저질환/알레르기 등을 note에 저장"""
+    """마이페이지 - 기저질환/알레르기/수면시간 등을 저장"""
 
     patient = get_object_or_404(Patient, patient_id=patient_id)
 
     if request.method == "POST":
         patient.is_pregnant = request.POST.get("is_pregnant") == "on"
 
-        conditions = request.POST.getlist("conditions")
-        # allergies = request.POST.getlist("allergies")
-        etc = request.POST.get("etc", "").strip()
+        # ===== 기저질환/기타: 폼에 해당 필드가 실제로 존재할 때만 note 갱신 =====
+        if "conditions" in request.POST or "etc" in request.POST:
+            conditions = request.POST.getlist("conditions")
+            etc = request.POST.get("etc", "").strip()
 
-        notes = []
+            notes = []
+            if conditions:
+                notes.append(", ".join(conditions))
+            if etc:
+                notes.append(f"기타: {etc}")
 
-        if conditions:
-            notes.append(f"기저질환: {', '.join(conditions)}")
+            patient.note = "\n".join(notes)
 
-        # if allergies:
-        #     notes.append(f"알레르기: {', '.join(allergies)}")
+        # ===== 취침/기상 시간 =====
+        sleep_time = request.POST.get("sleep_time", "").strip()
+        wake_time = request.POST.get("wake_time", "").strip()
 
-        if etc:
-            notes.append(f"기타: {etc}")
+        if sleep_time:
+            patient.average_sleep_time = datetime.strptime(sleep_time, "%H:%M").time()
+        if wake_time:
+            patient.average_wake_time = datetime.strptime(wake_time, "%H:%M").time()
 
-        patient.note = "\n".join(notes)
         patient.save()
 
         return redirect("patients:mypage", patient_id=patient_id)
@@ -226,7 +264,6 @@ def mypage(request, patient_id):
     }
 
     return render(request, "patients/mypage.html", context)
-
 
 @login_required
 def chat_history(request, patient_id):
@@ -346,7 +383,6 @@ def onboarding_hospital_auth(request):
             "selected_hospital": selected_hospital,
         }
     )
-
 
 def onboarding_loading(request):
     from .models import Hospital, Patient
