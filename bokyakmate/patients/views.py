@@ -9,6 +9,7 @@ patients/views.py
 import calendar
 from datetime import datetime, time, date
 import re
+import json
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
@@ -320,29 +321,36 @@ def records(request, patient_id):
     """기록 — 처방 기록/병원 방문 기록을 탭으로 묶어서 보여준다."""
     patient = get_object_or_404(Patient, patient_id=patient_id)
     active_tab = request.GET.get("tab", "prescriptions")
- 
+
     prescriptions = (
         Prescription.objects.filter(patient=patient)
         .select_related("hospital", "doctor")
         .prefetch_related("details")
         .order_by("-prescribed_at")
     )
- 
-    # Neo4j 약물 상세정보 배치 조회 + 각 detail에 붙이기
-    # detail.drug_id 가 db_column="drug_product_code" FK의 raw 값(제품코드)
+
+    # 1. 에러 방지를 위해 drug_id를 반드시 문자열(str)로 모아줍니다.
     drug_codes = set()
     for p in prescriptions:
         for detail in p.details.all():
             if detail.drug_id:
-                drug_codes.add(detail.drug_id)
- 
+                drug_codes.add(str(detail.drug_id))
+
+    # 2. 통합된 Neo4j 함수로 한 번에 조회 (여기서 이미 짧은 이름으로 만들어져 옴)
     neo4j_drugs = get_neo4j_drug_details(list(drug_codes)) if drug_codes else {}
- 
+
+    # 3. HTML 템플릿에서 곧바로 쓸 수 있게 short_drug_name 속성을 세팅해 줍니다.
     for p in prescriptions:
         for detail in p.details.all():
             if detail.drug_id:
-                detail.neo4j_info = neo4j_drugs.get(detail.drug_id, {})
- 
+                code = str(detail.drug_id)
+                neo4j_info = neo4j_drugs.get(code, {})
+                # 기존의 detail.neo4j_info 도 살려두고, 이름만 빼서 쓰기 쉽게 추가합니다.
+                detail.neo4j_info = neo4j_info
+                detail.short_drug_name = neo4j_info.get("name") or "약 이름 정보 없음"
+            else:
+                detail.short_drug_name = "알 수 없는 약"
+
     context = {
         "patient": patient,
         "active_tab": active_tab,

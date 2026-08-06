@@ -25,10 +25,13 @@
             {% for p in prescriptions %}
             <div class="record-card">
                 <div class="title">{{ p.diagnosis|default:"처방 기록" }}</div>
-                <div class="meta">{{ p.prescribed_at }} · {{ p.doctor.name }} · {{ p.hospital.hospital_name }}</div>
+                <div class="meta">{{ p.prescribed_at|date:"Y.m.d" }} · {{ p.doctor.name }} · {{ p.hospital.hospital_name }}</div>
+                
                 {% for d in p.details.all %}
-                <div class="drug-line">💊 {{ d.drug.drug_name }} — {{ d.dosage_instruction }}</div>
+                <!-- 💡 여기를 수정했습니다! (d.drug.drug_name -> d.short_drug_name) -->
+                <div class="drug-line">💊 {{ d.short_drug_name }} — {{ d.dosage_instruction }}</div>
                 {% endfor %}
+                
             </div>
             {% empty %}
             <div class="empty-state">처방 기록이 없어요.</div>

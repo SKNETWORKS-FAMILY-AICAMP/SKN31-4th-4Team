@@ -1,4 +1,5 @@
 from django.apps import apps
+import json
 
 def get_neo4j_drug_details(product_codes: list) -> dict:
     """
