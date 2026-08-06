@@ -2,16 +2,23 @@
    patient_tags.py의 bottom_nav() 함수가 렌더링해준다.
    파일명 앞에 _를 붙인 건 "부분 템플릿(partial)"이라는 관례 표시. {% endcomment %}
 <div class="bottom-nav">
-    <a href="{{ main_url }}" class="nav-item {% if active_tab == 'home' %}active{% endif %}">
+    <a href="{{ main_url }}" 
+       class="nav-item nav-leave-chat {% if active_tab == 'home' %}active{% endif %}">
         <span class="nav-icon">🏠</span>홈
     </a>
-    <a href="{{ calendar_url }}" class="nav-item {% if active_tab == 'calendar' %}active{% endif %}">
+
+    <a href="{{ calendar_url }}" 
+       class="nav-item nav-leave-chat {% if active_tab == 'calendar' %}active{% endif %}">
         <span class="nav-icon">📅</span>캘린더
     </a>
-    <a href="{{ records_url }}" class="nav-item {% if active_tab == 'records' %}active{% endif %}">
+
+    <a href="{{ records_url }}" 
+       class="nav-item nav-leave-chat {% if active_tab == 'records' %}active{% endif %}">
         <span class="nav-icon">📋</span>기록
     </a>
-    <a href="{{ mypage_url }}" class="nav-item {% if active_tab == 'mypage' %}active{% endif %}">
+
+    <a href="{{ mypage_url }}" 
+       class="nav-item nav-leave-chat {% if active_tab == 'mypage' %}active{% endif %}">
         <span class="nav-icon">👤</span>마이
     </a>
 </div>

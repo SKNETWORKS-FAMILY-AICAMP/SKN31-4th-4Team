@@ -28,7 +28,6 @@ from django.http import JsonResponse, HttpResponse
 from langchain_core.messages import HumanMessage
 from asgiref.sync import async_to_sync
 import sqlite3
-import json
 from Chatbot.builder import build_graph, build_initial_state
 from services.end_summary import process_chat_summary
 # 복약 기록 쪽 
@@ -43,9 +42,10 @@ def _check_owner(request, patient_id):
 def patient_main(request, patient_id):
     patient = get_object_or_404(Patient, patient_id=patient_id)
 
-    # 1. 템플릿에 넘길 current_drug 초기화 (처방 내역이 없을 때 에러 방지)
-    current_drug = None
+    # 1. 여러 약을 담을 리스트와 중복 방지 세트 (에러 방지를 위해 미리 초기화!)
+    current_drugs = []
     drug_codes = set()
+    seen_drug_ids = set()
 
     latest_prescription = (
         Prescription.objects.filter(patient=patient)
@@ -53,16 +53,15 @@ def patient_main(request, patient_id):
         .first()
     )
 
+    # 처방전이 있다면 '모든 약'을 수집 (break 제거)
     if latest_prescription:
         for detail in latest_prescription.details.all():
-            if detail.drug_id:
-                # 템플릿의 {{ current_drug.drug_name }} 을 지원하기 위해 딕셔너리로 생성
-                current_drug = {"drug_id": detail.drug_id, "drug_name": "알 수 없는 약"}
+            if detail.drug_id and detail.drug_id not in seen_drug_ids:
+                seen_drug_ids.add(detail.drug_id)
+                current_drugs.append({"drug_id": detail.drug_id, "drug_name": "알 수 없는 약"})
                 drug_codes.add(str(detail.drug_id))
-                break
 
     recent_chats = ChatSession.objects.filter(patient=patient)[:3]
-
     today = timezone.localdate()
     
     # 2. 캘린더와 동일하게 타임존(Timezone) 문제 방지를 위해 시간 범위(Range)로 조회
@@ -83,13 +82,14 @@ def patient_main(request, patient_id):
             drug_codes.add(str(log.prescription_detail.drug_id))
 
     # 3. 수집한 모든 drug_id(문자열)로 Neo4j에서 한 번에 조회
+    # (앞서 합친 함수 내부에서 이미 '(' 기준으로 잘린 짧은 이름이 'name'에 담겨서 돌아옴!)
     neo4j_drugs = get_neo4j_drug_details(list(drug_codes)) if drug_codes else {}
 
-    # 4. 조회한 Neo4j 데이터를 current_drug에 매핑
-    if current_drug:
-        code = str(current_drug["drug_id"])
+    # 4. 조회한 Neo4j 데이터를 상단 칩(current_drugs) 리스트에 매핑
+    for drug in current_drugs:
+        code = str(drug["drug_id"])
         neo4j_info = neo4j_drugs.get(code, {})
-        current_drug["drug_name"] = neo4j_info.get("name") or "약 이름 정보 없음"
+        drug["drug_name"] = neo4j_info.get("name") or "약 이름 정보 없음"
 
     # 5. 조회한 Neo4j 데이터를 오늘의 복약 리스트(today_doses)에 매핑
     today_doses = []
@@ -122,7 +122,7 @@ def patient_main(request, patient_id):
 
     context = {
         "patient": patient,
-        "current_drug": current_drug,
+        "current_drugs": current_drugs,  # 👈 템플릿의 {% if current_drugs %} 와 매칭!
         "recent_chats": recent_chats,
         "quick_cards": quick_cards,
         "today_doses": today_doses,
@@ -133,6 +133,7 @@ def patient_main(request, patient_id):
         "chatbot_url": reverse("patients:chatbot_start", args=[patient_id]),
     }
     return render(request, "patients/patient_main.html", context)
+
 
 @login_required
 def dosing_calendar(request, patient_id):
@@ -227,6 +228,17 @@ def dosing_calendar(request, patient_id):
         if log.status == "pending" and log.scheduled_at < now:
             log.status = "missed"
             log.save(update_fields=["status"])
+            
+    for log in todays_logs:
+        log.can_take = (
+            log.status == "pending"
+            and log.scheduled_at <= now
+        )
+
+        log.is_future = (
+            log.status == "pending"
+            and log.scheduled_at > now
+        )
 
     # [수정됨 4] Neo4j 조회를 위해 drug_id를 무조건 문자열(str)로 통일!
     drug_codes = set(

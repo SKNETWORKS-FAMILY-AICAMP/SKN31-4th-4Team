@@ -19,11 +19,15 @@
             </div>
         </div>
         <div class="chip-row">
-            {% if current_drug %}
-                <span class="chip">💊 {{ current_drug.drug_name }}</span>
+            {% if current_drugs %}
+                <!-- 💊 약이 여러 개일 경우 각각 칩으로 띄워줍니다 -->
+                {% for drug in current_drugs %}
+                    <span class="chip">💊 {{ drug.drug_name }}</span>
+                {% endfor %}
             {% else %}
                 <span class="chip">💊 복용 중인 약 없음</span>
             {% endif %}
+            
             <span class="chip">🎂 {{ patient.age }}세 · {{ patient.get_gender_display }}</span>
         </div>
     </div>
