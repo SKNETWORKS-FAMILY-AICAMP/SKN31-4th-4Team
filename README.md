@@ -4,17 +4,15 @@
 <br>
 
 <div align="center">
-    <img src="/bokyakmate/image/bokyakmate_banner.png" width="450" height="600"></td>
+    <img src="/bokyakmate/image/bokyakmate_banner.png" width="600" height="600"></td>
 
 ## 팀 및 팀원 소개
 
-# 복약 메이트
-
 | 이영창 | 김봉남 | 이재일 | 박하린 |
 | :---: | :---: | :---: | :---: |
-| <a href="https://github.com/<이영창-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> |<a href="https://github.com/<김봉남-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> | <a href="https://github.com/<이재일-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> | <a href="https://github.com/<박하린-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a>|
-| <img src="image/team_02_이영창.png" width="150" height="150"> | <img src="image/team_01_김봉남.png" width="150" height="150">| <img src="image/team_04_이재일.png" width="150" height="150"> | <img src="image/team_03_박하린.png" width="150" height="150"> |
-| <b>PM(대화엔진/리트리버)</b> | <b>기획/DB설계·구축/대화엔진</b> | <b>Web Beckend/그래프DB</b> | <b>Web F/B · AWS구축 </b> |
+| <a href="https://github.com/<이영창-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> | <a href="https://github.com/<김봉남-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> | <a href="https://github.com/<이재일-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> | <a href="https://github.com/<박하린-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> |
+| <img src="bokyakmate/image/team_02_이영창.png" width="150" height="170"> | <img src="bokyakmate/image/team_01_김봉남.png" width="150" height="170"> | <img src="bokyakmate/image/team_04_이재일.png" width="150" height="170"> | <img src="bokyakmate/image/team_03_박하린.png" width="150" height="170"> |
+| <b>PM(대화엔진/리트리버)</b> | <b>기획/DB설계·구축/대화엔진</b> | <b>Web Beckend/그래프DB</b> | <b>Web F/B · AWS구축</b> |
 
 </div>
 
@@ -116,17 +114,6 @@ Explainable Personalized Answer → Django Template 렌더링
 | Retriever | Graph + Vector Hybrid |
 | RDBMS | MySQL (AWS RDS) |
 | 배포 인프라 | AWS EC2, Gunicorn, Nginx |
-
----
-
-## 📁 산출물
-
-| 산출물 | 링크 |
-|---|---|
-| 요구사항 정의서 | _(링크 입력 예정)_ |
-| 화면 설계서 | _(링크 입력 예정)_ |
-| 시스템 구성도 | 상단 아키텍처 참고 |
-| 테스트 계획서 및 테스트 결과 보고서 | _(링크 입력 예정)_ |
 
 ---
 
@@ -250,26 +237,78 @@ Personal Graph와 Medical Graph를 하나의 Neo4j 데이터베이스에서 연�
 ## 📂 폴더 구조
 
 ```
-bokyakmate/
-├── manage.py
-├── config/                    # Django 프로젝트 설정
-├── apps/
-│   ├── patients/               # 환자용 화면 (mypage, 복약 정보 등)
-│   ├── chatbot/                 # 챗봇 세션/대화 뷰
-│   └── ...
-├── workflow/                  # LangGraph 상태 그래프 정의
-├── retriever/                  # Graph + Vector 하이브리드 리트리버
-├── llm_client/                 # LLM 호출 (엔티티 추출 / 답변 생성)
-├── schemas/                    # Pydantic 스키마
-├── db/
-│   ├── personal_graph_db.py    # PGHD Neo4j 커넥터
-│   ├── medical_graph_db.py     # 의학 그래프 Neo4j 커넥터 (병용금기 포함)
-│   └── vector_db.py            # Qdrant 커넥터
-├── templates/                   # Django 템플릿 (환자용 화면)
-├── static/
-├── image/
-│   └── profile2.png
-├── requirements.txt
-└── .env.example
+SKN31-4th-4Team/
+├── .vscode/
+│   └── settings.json
+├── bokyakmate/                          # Django 프로젝트 루트
+│   ├── Chatbot/                          # LangGraph 기반 챗봇 파이프라인
+│   │   ├── builder.py                     # LangGraph 워크플로우(그래프) 빌더
+│   │   ├── chat_node.py                   # 대화 노드(에이전트 스텝) 정의
+│   │   ├── con_tools.py                   # 챗봇에서 사용하는 도구(Tool) 함수
+│   │   ├── db_connect.py                  # Neo4j/DB 연결
+│   │   ├── db_loader.py                   # 그래프 DB 데이터 로더
+│   │   ├── qdrant_loader.py               # Qdrant 벡터 DB 로더
+│   │   ├── session_summary.py             # 상담 세션 요약 생성
+│   │   └── state.py                       # LangGraph 상태(State) 스키마
+│   │
+│   ├── accounts/                         # 로그인/인증 앱
+│   │   ├── templates/accounts/
+│   │   │   └── login.html
+│   │   ├── models.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   │
+│   ├── config/                           # Django 프로젝트 설정
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   ├── asgi.py
+│   │   └── wsgi.py
+│   │
+│   ├── patients/                         # 환자용(Patient-facing) 화면 — 메인 서비스 앱
+│   │   ├── management/commands/
+│   │   │   └── seed_demo.py                # 데모 데이터 시딩 커맨드
+│   │   ├── migrations/
+│   │   ├── static/patients/css/
+│   │   │   └── main.css
+│   │   ├── templates/patients/
+│   │   │   ├── 400.html · 403.html · 403_csrf.html · 404.html · 500.html   # 커스텀 에러 페이지
+│   │   │   ├── _bottom_nav.html            # 하단 네비게이션 (inclusion tag)
+│   │   │   ├── calendar_day.html / dosing_calendar.html   # 복약 캘린더
+│   │   │   ├── chat_history.html / chat_history_detail.html / chatbot.html  # 챗봇 대화
+│   │   │   ├── mypage.html                 # 마이페이지
+│   │   │   ├── onboarding_*.html           # 온보딩(건강정보 입력·병원 인증 등) 플로우
+│   │   │   ├── patient_main.html           # 환자 홈
+│   │   │   └── records.html                # 복약/증상 기록
+│   │   ├── templatetags/
+│   │   │   └── patient_tags.py             # 커스텀 템플릿 태그(하단 네비 등)
+│   │   ├── models.py                       # Patient, ChatSession, SymptomLog 등
+│   │   ├── urls.py
+│   │   └── views.py
+│   │
+│   ├── services/                         # 도메인 서비스 레이어
+│   │   ├── db_connector.py                 # DB 커넥터 공통 모듈
+│   │   ├── end_summary.py                  # 상담 종료 시 요약 처리
+│   │   └── medical_graph.py                # Medical Graph(Neo4j) 조회/조작 로직
+│   │
+│   ├── image/                            # README/서비스용 이미지 리소스
+│   │   ├── bokyakmate_banner.png
+│   │   └── team_0N_이름.png                 # 팀원 프로필 이미지
+│   │
+│   ├── manage.py
+│   ├── langgraph_checkpoint.db            # LangGraph 체크포인트 저장소
+│   └── README.md                          # 앱(bokyakmate) 단위 README
+│
+├── .gitignore
+├── README.md                            # 프로젝트 최상위 README
+└── requirements.txt
 ```
+## 📁 산출물
 
+| 산출물 | 링크 |
+|---|---|
+| 요구사항 정의서 | _(링크 입력 예정)_ |
+| 화면 설계서 | _(링크 입력 예정)_ |
+| 시스템 구성도 | 상단 아키텍처 참고 |
+| 테스트 계획서 및 테스트 결과 보고서 | _(링크 입력 예정)_ |
+
+---
