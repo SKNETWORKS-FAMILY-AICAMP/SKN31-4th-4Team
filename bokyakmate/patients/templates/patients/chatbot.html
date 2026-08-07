@@ -85,17 +85,19 @@
             </div>
             {% endif %}
             {% endif %}
-            <div>
-                <form class="chat-input-bar" id="chat-form">
-                    {% csrf_token %}
-                    <input type="text" id="user-input" name="user_input" placeholder="예) 약 먹고 두통이 있어요" autocomplete="off">
-                    <button type="submit" class="chat-send-btn">↑</button>
-                </form>
-        </div> 
+          
         </div>
-        
+        <div>
+        <div class="nav-wrap">
+            <form class="chat-input-bar" id="chat-form">
+                {% csrf_token %}
+                <input type="text" id="user-input" name="user_input" placeholder="예) 약 먹고 두통이 있어요" autocomplete="off">
+                <button type="submit" class="chat-send-btn">↑</button>
+            </form>
+        </div>
         <div>
             {% bottom_nav "chat" %}
+        </div>
         </div>
     </div>
 </div>
