@@ -23,7 +23,7 @@ class RouteResult(BaseModel):
 
 class FollowupRouteResult(BaseModel):
     need_followup: bool = Field(
-        description="사용자의 방금 답변이 부작용 문진(증상/복용 관련)과 관련이 있는지 알려줘, 증상이 없었다 는것도 관련이 있는거야."
+        description="사용자의 방금 답변이 여전히 부작용 문진(증상/복용 관련)과 관련이 있는지 알려줘"
     )
     sufficient_info: bool = Field(
         description="지금까지의 대화 내역으로 부작용 문진에 필요한 정보가 충분히 모였다고 판단되면 True"
@@ -144,7 +144,7 @@ def symptom_summary_node(state: State):
 
 # 여러 턴의 추가 문진 진행 중 사용자의 해당 답변 이탈 여부 및 상태를 파악할 충분한 정보가 필요한지 판단.
 def followup_gate_node(state: State):
-    FOLLOWUP_ROUTER_SYSTEM_PROMPT = f"""
+    FOLLOWUP_ROUTER_SYSTEM_PROMPT = """
     지금까지 확인된 내용
         - 문진 응답 내역: {state.get("checked_symptoms"), []}
         - 전체 대화 이력: {state.get("messages", [])}
@@ -160,7 +160,7 @@ def followup_gate_node(state: State):
     - 갑작스럽더라도 사용자가 일반적인 대화를 하고자 하는 경우.
 
     다음은 sufficient_info=True로 판단한다:
-    사용자의 답변내역 들을 보고 판단한다. 
+    증상에 대해 추가로 물어본 내역을 확인 후 판단한다. 
     지금까지 오간 대화로 증상 양상/경과를 판단할 수 있을거 같은 경우.
     llm이 제공한 증상내역에 대해 사용자가 거의 다 답변했을 경우.
     환자가 그런증상은 없어, 추가적인 증상은 없어 등 더는 증상을 호소하지 않는 경우.
@@ -368,7 +368,7 @@ def side_effect_followup_node(state: State):
     당신은 환자의 증상을 물어보는 문진 어시스턴트다.
 
     # Next Step
-    사용자의 방금 답변에 자연스럽게 반응한 뒤, 조회된 부작용 정보와 문진 응답 내역을 참고해서
+    사용자의 방금 답변에 자연스럽게 반응한 뒤, 조회된 부작용 정보와 지금까지의 대화 흐름을 참고해서
     부작용 원인 파악에 도움이 될 만한 추가 질문을 자연스럽게 이어서 물어봐줘.
 
     # Constraints
