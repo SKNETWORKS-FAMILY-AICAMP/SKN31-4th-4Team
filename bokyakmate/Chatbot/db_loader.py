@@ -121,44 +121,66 @@ def load_latest_medication_log(conn, patient_id: str) -> dict | None:
 }
 
 
-def load_past_side_effect_summaries(conn, patient_id: str, limit: int = 5) -> list[dict]:
-    """해당 환자의 과거 symptom_log 기록을 최근 순으로 조회."""
+def load_past_side_effect_summaries(
+    conn,
+    patient_id: str,
+    drug_product_codes: list[str],
+    limit: int = 3,
+) -> list[dict]:
+    """같은 약 중 하나라도 포함된 과거 symptom_log를 최근순으로 조회"""
+
+    if not drug_product_codes:
+        return []
+
     cur = conn.cursor()
-    # MySQL 안전성을 위해 limit 값을 int로 캐스팅 후 f-string 대입
     safe_limit = int(limit)
-    
+
+    placeholders = ", ".join(["%s"] * len(drug_product_codes))
+
     cur.execute(
         f"""
-        SELECT summary, keyword, reported_at, severity
-        FROM symptom_log
-        WHERE patient_id = %s
-        ORDER BY reported_at DESC
+        SELECT DISTINCT
+            sl.summary,
+            sl.keyword,
+            sl.reported_at,
+            sl.severity
+        FROM symptom_log sl
+        JOIN prescription_detail pd
+            ON sl.prescription_id = pd.prescription_id
+        WHERE sl.patient_id = %s
+          AND pd.drug_product_code IN ({placeholders})
+        ORDER BY sl.reported_at DESC
         LIMIT {safe_limit}
         """,
-        (patient_id,),
+        (patient_id, *drug_product_codes),
     )
+
     rows = cur.fetchall()
+
     return [
-        {
-            "summary": r[0],
-            "symptom_keyword": r[1],
-            "reported_at": r[2],
-            "severity": r[3],
-        }
-        for r in rows
-    ]
+    {
+        "summary": r["summary"],
+        "symptom_keyword": r["keyword"],
+        "reported_at": r["reported_at"],
+        "severity": r["severity"],
+    }
+    for r in rows
+]
 
-
-def load_initial_state_data(conn,patient_id: str) -> dict:
+def load_initial_state_data(conn, patient_id: str) -> dict:
     """세션 시작 시 한 번 호출해서 State에 그대로 얹을 수 있는 dict를 반환."""
-    conn = get_mysql_connection()
+
+    patient_info = load_patient_info(conn, patient_id)
 
     return {
-        "patient_info": load_patient_info(conn, patient_id),
+        "patient_info": patient_info,
         "medication_log": load_latest_medication_log(conn, patient_id),
-        "past_side_effect_summaries": load_past_side_effect_summaries(conn, patient_id),
+        "past_side_effect_summaries": load_past_side_effect_summaries(
+            conn,
+            patient_id,
+            patient_info["product_codes"],
+        ),
     }
-
 
 def search_drug(name: str, limit: int = 10) -> list[dict]:
     """제품명(일부)으로 약품을 검색합니다. 제품코드, 회사, 규격 여부를 반환합니다."""

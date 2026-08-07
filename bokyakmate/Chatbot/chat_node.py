@@ -23,7 +23,7 @@ class RouteResult(BaseModel):
 
 class FollowupRouteResult(BaseModel):
     need_followup: bool = Field(
-        description="사용자의 방금 답변이 여전히 부작용 문진(증상/복용 관련)과 관련이 있는지 알려줘"
+        description="사용자의 방금 답변이 부작용 문진(증상/복용 관련)과 관련이 있는지 알려줘, 증상이 없었다 는것도 관련이 있는거야."
     )
     sufficient_info: bool = Field(
         description="지금까지의 대화 내역으로 부작용 문진에 필요한 정보가 충분히 모였다고 판단되면 True"
@@ -118,17 +118,18 @@ def symptom_summary_node(state: State):
         - 잠드는 시간: {state['patient_info']['average_sleep_time']}
         - 일어나는 시간: {state['patient_info']['average_wake_time']}
         - 식사 패턴: {state['patient_info']['meal_pattern']}
-        
+        - 과거 부작용 기록: {state.get("past_side_effect_summaries")}
     지금까지 확인된 내용
     - 문진 응답 내역: {checked}
     복용 중인 약: {patient_info.get('drugs')}
     조회된 부작용 정보: {state.get('medicine_side_effect')}
-    과거 부작용 기록: {state.get("past_side_effect_summaries")}
+    
     
     당신은 약물 부작용 분석 어시스턴트다.
-    복용 중인 약이 2개 이상이면, 확인된 증상/부작용을 가능한 한 관련된 약별로 구분해서 요약한다. 특정 약과 명확히 연결 짓기 어려운 내용은 구분 없이 안내한다.
+    특정 약과 명확히 연결 짓기 어려운 내용은 구분 없이 안내한다.
     과거 부작용 기록 중 이번과 관련된 이력(특히 과거 severity)이 있으면 위험성 판단에 참고한다.
     이어서 위 내용을 근거로 병원에 당장 방문해야 하는 수준인지 위험성을 판단해서 안내하고 대화를 마무리한다.
+    답변은 간결하게 한다.
     """
     response = llm.invoke(closing_prompt)
     
@@ -143,9 +144,12 @@ def symptom_summary_node(state: State):
 
 # 여러 턴의 추가 문진 진행 중 사용자의 해당 답변 이탈 여부 및 상태를 파악할 충분한 정보가 필요한지 판단.
 def followup_gate_node(state: State):
-    FOLLOWUP_ROUTER_SYSTEM_PROMPT = """
-    당신은 진행 중인 약물 부작용 문진 대화에서, 사용자의 방금 답변이
-    계속 문진을 이어가야 하는 내용인지, 그리고 문진에 필요한 정보가 이미 충분히 모였는지 판단하는 라우터 입니다.
+    FOLLOWUP_ROUTER_SYSTEM_PROMPT = f"""
+    지금까지 확인된 내용
+        - 문진 응답 내역: {state.get("checked_symptoms"), []}
+        - 전체 대화 이력: {state.get("messages", [])}
+    당신은 진행 중인 환자와의 문진 대화에서, 사용자의 방금 답변이
+    계속 문진을 이어가야 하는 내용인지, 문진에 필요한 정보가 어느정도 모였는지 판단하는 라우터 입니다.
 
     사용자가 방금 한 말이 다음에 해당하면 need_followup=True로 판단한다:
     - 증상/부작용에 대한 답변을 계속하는 경우
@@ -155,8 +159,16 @@ def followup_gate_node(state: State):
     - 증상과 무관한 화제로 전환하는 경우
     - 갑작스럽더라도 사용자가 일반적인 대화를 하고자 하는 경우.
 
-    sufficient_info는 need_followup 여부와 별개로 증상에 대해 추가로 물어본 내역을 확인 후 판단한다. 
-    지금까지 오간 대화로 증상 양상/경과를 판단할 수 있을거 같다면 sufficient_info= True로 판단한다.
+    다음은 sufficient_info=True로 판단한다:
+    사용자의 답변내역 들을 보고 판단한다. 
+    지금까지 오간 대화로 증상 양상/경과를 판단할 수 있을거 같은 경우.
+    llm이 제공한 증상내역에 대해 사용자가 거의 다 답변했을 경우.
+    환자가 그런증상은 없어, 추가적인 증상은 없어 등 더는 증상을 호소하지 않는 경우.
+
+    다음은 sufficient_info=False로 판단한다:
+    사용자가 추가적인 증상을 얘기 하는경우.
+    사용자말한 증상에 대해 추가적인 정보가 필요한경우.
+
     """
 
     result = followup_router_llm.invoke(
@@ -253,7 +265,7 @@ def side_effect_node(state: State):
     - 복용 중인 약: {drug_names}
     - 조회된 부작용 정보: {medicine_side_effect}
     - 복용 후 경과 시간: {state.get("hours_since_dose")}시간
-    - 과거 부작용 기록: {state.get("past_side_effect_summaries")}
+    
     - 환자 정보
         - 이름: {state['patient_info']['name']}
         - 나이: {state['patient_info']['age']}
@@ -263,7 +275,7 @@ def side_effect_node(state: State):
         - 잠드는 시간: {state['patient_info']['average_sleep_time']}
         - 일어나는 시간: {state['patient_info']['average_wake_time']}
         - 식사 패턴: {state['patient_info']['meal_pattern']}
-
+        - 과거 부작용 기록: {state.get("past_side_effect_summaries")}
     Role
     당신은 환자의 증상을 묻는 문진 어시스턴트다.
 
@@ -288,9 +300,9 @@ def side_effect_node(state: State):
     }
 
 
-# 추가 문진 노드 및 종료시 대화 섹션 삭제
+# 추가 문진 노드 
 def side_effect_followup_node(state: State):
-    MAX_FOLLOWUP_TURNS = 5  # 자유 문진 턴 수 제한
+    MAX_FOLLOWUP_TURNS = 4  # 자유 문진 턴 수 제한
 
     idx = state.get("checklist_index", -1)
     messages = state.get("messages", [])
@@ -320,18 +332,18 @@ def side_effect_followup_node(state: State):
             - 잠드는 시간: {state['patient_info']['average_sleep_time']}
             - 일어나는 시간: {state['patient_info']['average_wake_time']}
             - 식사 패턴: {state['patient_info']['meal_pattern']}
+            - 과거 부작용 기록: {state.get("past_side_effect_summaries")}
         지금까지 확인된 내용
         - 문진 응답 내역: {checked}
         복용 중인 약: {drugs}
         조회된 부작용 정보: {medicine_side_effect}
-        과거 부작용 기록: {state.get("past_side_effect_summaries")}
+        
 
         당신은 약물 부작용 분석 어시스턴트다.
-        복용 중인 약이 2개 이상이면, 확인된 증상/부작용을 가능한 한 관련된 약별로 구분해서 요약한다. 
         특정 약과 명확히 연결 짓기 어려운 내용은 구분 없이 안내한다.
         과거 부작용 기록 중 이번과 관련된 이력(특히 과거 severity)이 있으면 위험성 판단에 참고한다.
-        간략하게 답변한다.
         이어서 위 내용을 근거로 병원에 당장 방문해야 하는 수준인지 위험성을 판단해서 안내하고 대화를 마무리한다.
+        간략하게 답변한다.
         """
         response = llm.invoke(closing_prompt)
 
@@ -351,16 +363,16 @@ def side_effect_followup_node(state: State):
     - 전체 대화 이력: {messages}
     - 복용 중인 약: {drugs}
     - 조회된 부작용 정보: {medicine_side_effect}
-
+    -과거 부작용 기록: {state.get("past_side_effect_summaries")}
     # Role
-    당신은 약물 부작용 문진을 돕는 어시스턴트다.
+    당신은 환자의 증상을 물어보는 문진 어시스턴트다.
 
     # Next Step
-    사용자의 방금 답변에 자연스럽게 반응한 뒤, 조회된 부작용 정보와 지금까지의 대화 흐름을 참고해서
+    사용자의 방금 답변에 자연스럽게 반응한 뒤, 조회된 부작용 정보와 문진 응답 내역을 참고해서
     부작용 원인 파악에 도움이 될 만한 추가 질문을 자연스럽게 이어서 물어봐줘.
 
     # Constraints
-    1. 문진 응답 내역을 확인한 후 이미 물어본 증상과 비슷한 증상은 다시 물어보지 않는다.
+    1. 항상 존댓말을 유지하도록 한다.
     2. 인과성에 대한 최종 판단(약 때문인지 아닌지)은 하지 않고 이와 관련된 답변도 하지 않는다.
     3. 약을 언제 먹었는지,약들을 같이 먹었는지, 약 먹고 부터 몇시간 뒤부터 아팠는지등의 내용은 묻지 않는다.
     4. 추가 질문은 1~2개 정도만 물어본다.
@@ -389,6 +401,7 @@ def general_chat_node(state: State):
         - 일어나는 시간: {state['patient_info']['average_wake_time']}
         - 식사 패턴: {state['patient_info']['meal_pattern']}
         - 복용 중인 약: {state['patient_info'].get('drugs')}
+        - 과거 부작용 기록: {state.get("past_side_effect_summaries")}
     - 전체 대화 이력: {state["messages"]}
 
     # Role

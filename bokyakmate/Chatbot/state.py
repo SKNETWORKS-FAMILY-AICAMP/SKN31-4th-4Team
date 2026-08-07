@@ -2,14 +2,6 @@ from typing import TypedDict, Optional
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional, TypedDict
 
-class PatientInfo(TypedDict):
-    name: str
-    age: int
-    gender: str
-    is_pregnant: bool
-    ingredient_codes: list[str]
-    drugs: list[str | None]
-
 
 class MedicationLog(TypedDict):
     medication_log_id: int
@@ -30,10 +22,3 @@ class State(TypedDict):
     sufficient_info: bool
     system_signal: Optional[str]
     end_signal: Optional[str]
-    mentioned_drug_name: str
-
-class ChatRequest(BaseModel):
-    query: str
-    thread_id: str
-    model: str
-    patient_info: PatientInfo
