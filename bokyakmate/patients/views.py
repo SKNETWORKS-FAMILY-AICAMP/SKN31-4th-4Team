@@ -181,7 +181,10 @@ def dosing_calendar(request, patient_id):
                 log.taken_at = None
                 log.save(update_fields=["status", "taken_at"])
 
-        elif log.status == "pending" and log.scheduled_at < now:
+        elif log.status == "pending" and log_date < today:
+            # 오늘보다 이전 날짜(지난 날)에 예정됐던 건만 자동 미복용 처리한다.
+            # (예정시각만 지났다고 바로 미복용 처리하면, 같은 날 안에 늦게라도
+            #  복용하고 '복용했어요'를 누를 기회 자체가 사라져버리는 버그가 있었음)
             log.status = "missed"
             log.save(update_fields=["status"])
 
@@ -246,8 +249,10 @@ def dosing_calendar(request, patient_id):
                 log.taken_at = None
                 log.save(update_fields=["status", "taken_at"])
 
-        # 오늘 이전인데 아직 pending이면 missed 처리
-        elif log.status == "pending" and log.scheduled_at < now:
+        # 지난 날짜(오늘 이전)인데 아직 pending이면 missed 처리.
+        # (당일 예정시각이 지난 것만으로는 missed 처리하지 않는다 — 같은 날
+        #  안에서는 늦게라도 '복용했어요'를 눌러 완료 처리할 수 있어야 하므로)
+        elif log.status == "pending" and log_date < today:
             log.status = "missed"
             log.save(update_fields=["status"])
 
