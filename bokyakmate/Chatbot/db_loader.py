@@ -13,7 +13,7 @@ def calc_age(birth_date) -> int:
         birth = birth_date
     today = date.today()
     return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
-
+#.
 
 def load_patient_info(conn, patient_id: str) -> dict:
     """patient + prescription + prescription_detail + drug를 조회해 PatientInfo 형태로 매핑.
@@ -23,7 +23,7 @@ def load_patient_info(conn, patient_id: str) -> dict:
     # 1. 환자 기본 정보 조회
     cur.execute(
         """
-        SELECT name, birth_date, gender, is_pregnant, is_smoker, average_sleep_time, average_wake_time, meal_pattern
+        SELECT name, birth_date, gender, is_pregnant,is_smoker,meal_pattern,average_wake_time,average_sleep_time
         FROM patient
         WHERE patient_id = %s
         """,
@@ -93,9 +93,9 @@ def load_patient_info(conn, patient_id: str) -> dict:
         "drugs": drug_names,
         "product_codes":product_codes,
         "is_smoker":is_smoker,
-        "average_sleep_time": average_sleep_time,
-        "average_wake_time": average_wake_time,
-        "meal_pattern": meal_pattern
+        "meal_pattern":meal_pattern,
+        "average_wake_time":average_wake_time,
+        "average_sleep_time":average_sleep_time,
     }
 
 
