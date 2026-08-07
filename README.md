@@ -24,7 +24,7 @@
 
 **복약메이트 — Personal Graph(PGHD)와 Medical Graph를 결합한 설명 가능(Explainable) 정신과 복약 상담 챗봇 웹 서비스**
 
-환자 개인의 복약·증상 이력(Personal Graph)과 약물-질환은 Mysql, 부작용-병용금기 지식(Medical Graph)은 Neo4j에서 관리하고, Graph + Vector 하이브리드 검색으로 근거를 제시하는 개인화 상담 챗봇을 Django 웹 애플리케이션으로 구축했습니다.
+환자 개인의 복약·증상 이력(Personal Graph)과 약물-질환-부작용은 Mysql, 병용금기 지식(Medical Graph)은 Neo4j에서 관리하고, Graph + Vector 하이브리드 검색으로 근거를 제시하는 개인화 상담 챗봇을 Django 웹 애플리케이션으로 구축했습니다.
 
 ### 주제를 선택한 이유
 
