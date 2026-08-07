@@ -86,4 +86,10 @@ def summarize_and_save_session(
 
 
 
-
+# summarize_and_save_session(
+#     patient_db_conn=patient_db_conn,
+#     thread_id=thread_id,
+#     patient_id=patient_id,
+#     chat_session_id=chat_session_id,
+#     prescription_id=prescription_id,
+# )

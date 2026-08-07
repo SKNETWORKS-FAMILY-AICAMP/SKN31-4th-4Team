@@ -1,4 +1,5 @@
 # SKN31-4th-4Team
+
 # 💊 복약메이트 (BokYakMate) — 정신과 복약 관리 챗봇 웹 애플리케이션
 
 <br>
@@ -6,24 +7,14 @@
 <div align="center">
     <img src="/bokyakmate/image/bokyakmate_banner.png" width="600" height="600"></td>
 
-## 팀 및 팀원 소개
-
-| 이영창 | 김봉남 | 이재일 | 박하린 |
-| :---: | :---: | :---: | :---: |
-| <a href="https://github.com/<이영창-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> | <a href="https://github.com/<김봉남-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> | <a href="https://github.com/<이재일-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> | <a href="https://github.com/<박하린-github-id>"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/></a> |
-| <img src="bokyakmate/image/team_02_이영창.png" width="150" height="170"> | <img src="bokyakmate/image/team_01_김봉남.png" width="150" height="170"> | <img src="bokyakmate/image/team_04_이재일.png" width="150" height="170"> | <img src="bokyakmate/image/team_03_박하린.png" width="150" height="170"> |
-| <b>PM(대화엔진/리트리버)</b> | <b>기획/DB설계·구축/대화엔진</b> | <b>Web Beckend/그래프DB</b> | <b>Web F/B · AWS구축</b> |
-
-</div>
-
 ## 팀원 소개
 
-| 역할 | 이름 | 담당 업무 (R&R) |
-|:---:|:---:|:---|
-| **팀장** | **이영창** | • Retriever(검색기) 모델 및 알고리즘 설계• Django 백엔드 - 프론트엔드 연동 |
-| **팀원** | **김봉남** | • 시스템 아키텍처 설계 <br>• Neo4j 기반 Graph DB 설계 — 약물 관계(병용금기·부작용) 모델링<br> • 복약/정신건강 상담 챗봇 시나리오 및 대화 엔진 개발 |
-| **팀원** | **이재일** | • Django 백엔드 - 프론트엔드 연동 • 그래프 DB 구축 |
-| **팀원** | **박하린** | • 환자용(Patient-facing) Django 화면 설계 및 구현 (MVT)<br> Django 백엔드 - 프론트엔드 연동 • AWS EC2/RDS 배포 (Gunicorn + Nginx, MySQL 마이그레이션) |
+|      역할      |       이름       | 담당 업무 (R&R)                                                                                                                                     |
+| :------------: | :--------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **팀장** | **이영창** | • Langraph기반 챗봇 알고리즘 설계• Django 백엔드 - 프론트엔드 연동                                                                               |
+| **팀원** | **김봉남** | • 시스템 아키텍처 설계• Neo4j 기반 Graph DB 설계 — 약물 관계(병용금기·부작용) 모델링                                                            |
+| **팀원** | **이재일** | • Django 백엔드 - 프론트엔드 연동 • 그래프 DB 구축                                                                                                |
+| **팀원** | **박하린** | • 환자용(Patient-facing) Django 화면 설계 및 구현 (MVT) Django 백엔드 - 프론트엔드 연동 • AWS EC2/RDS 배포 (Gunicorn + Nginx, MySQL 마이그레이션) |
 
 ---
 
@@ -41,6 +32,7 @@
 - 단순 텍스트 검색만으로는 "왜 이 약을 주의해야 하는지"에 대한 관계적 근거(약물-부작용-증상 연결)를 보여주기 어렵다고 판단했습니다.
 - Personal Graph와 Medical Graph를 분리해 설계하면, 환자 개인 데이터와 공용 의학 지식을 함께 탐색하면서도 각 답변의 근거를 그래프 경로로 투명하게 제시할 수 있어 Explainable RAG 구조에 적합하다고 판단했습니다.
 - 3차 프로젝트에서 구축한 문서 기반 QA 시스템을 실서비스 형태(Django + AWS EC2)로 전환하면서, 병용금기(DUR) 그래프 관계를 추가해 실제 임상 근거에 더 가까운 정보를 제공하고자 했습니다.
+- 정신과 약물을 복용하는 환자인 만큼 사용자의 편의를 최대한 반영하는 상담 시스템을 제공하고자 했습니다.
 
 ### 주요 기능
 
@@ -57,7 +49,7 @@
 
 ## 🌐 AWS EC2 배포 URL
 
->[http://52.78.243.234/accounts/login/]
+> [http://52.78.243.234/accounts/login/]
 
 ---
 
@@ -102,18 +94,18 @@ Explainable Personalized Answer → Django Template 렌더링
 
 ## 🛠️ 기술 스택
 
-| 구성 요소 | 기술 |
-|---|---|
-| Backend / Web Framework | Django (MVT) |
-| Agent Workflow | LangGraph |
-| LLM | GPT-5.4-mini (기본)|
-| Personal Graph / Medical Graph | Neo4j |
-| Vector DB | Qdrant |
-| Embedding | text-embedding-3-large |
-| Entity Extraction | Structured Output (Pydantic) |
-| Retriever | Graph + Vector Hybrid |
-| RDBMS | MySQL (AWS RDS) |
-| 배포 인프라 | AWS EC2, Gunicorn, Nginx |
+| 구성 요소                      | 기술                         |
+| ------------------------------ | ---------------------------- |
+| Backend / Web Framework        | Django (MVT)                 |
+| Agent Workflow                 | LangGraph                    |
+| LLM                            | GPT-5.4-mini (기본)          |
+| Personal Graph / Medical Graph | Neo4j                        |
+| Vector DB                      | Qdrant                       |
+| Embedding                      | text-embedding-3-large       |
+| Entity Extraction              | Structured Output (Pydantic) |
+| Retriever                      | Graph + Vector Hybrid        |
+| RDBMS                          | MySQL (AWS RDS)              |
+| 배포 인프라                    | AWS EC2, Gunicorn, Nginx     |
 
 ---
 
@@ -157,32 +149,32 @@ Personal Graph와 Medical Graph를 하나의 Neo4j 데이터베이스에서 연�
 
 ### Node 설계
 
-| Node | 역할 | 주요 Property |
-|------|------|--------------|
-| Patient | 환자의 개인정보 및 건강정보를 저장하는 중심 노드 | patient_id, name, age, gender, pregnancy |
-| Drug | 환자가 복용하는 약물 정보 | drug_id, drug_name, ingredient_code, category, dosage |
-| Disease | 약물이 치료하는 질환 정보 | disease_name |
-| SideEffect | 약물의 부작용 정보 | side_effect_name, frequency |
-| Symptom | 환자가 경험하는 증상 | symptom_name, severity |
-| Condition | 환자의 기저질환 | condition_name |
-| ChatSession | 하나의 상담 세션 관리 | session_id, created_at |
-| Message | 상담 중 발생한 대화 저장 | message_id, role, content, timestamp |
-| Paper | 의학 논문 및 근거 문헌 | title, year, doi |
+| Node        | 역할                                             | 주요 Property                                         |
+| ----------- | ------------------------------------------------ | ----------------------------------------------------- |
+| Patient     | 환자의 개인정보 및 건강정보를 저장하는 중심 노드 | patient_id, name, age, gender, pregnancy              |
+| Drug        | 환자가 복용하는 약물 정보                        | drug_id, drug_name, ingredient_code, category, dosage |
+| Disease     | 약물이 치료하는 질환 정보                        | disease_name                                          |
+| SideEffect  | 약물의 부작용 정보                               | side_effect_name, frequency                           |
+| Symptom     | 환자가 경험하는 증상                             | symptom_name, severity                                |
+| Condition   | 환자의 기저질환                                  | condition_name                                        |
+| ChatSession | 하나의 상담 세션 관리                            | session_id, created_at                                |
+| Message     | 상담 중 발생한 대화 저장                         | message_id, role, content, timestamp                  |
+| Paper       | 의학 논문 및 근거 문헌                           | title, year, doi                                      |
 
 ### Relationship 설계
 
-| 관계 | From → To | 설명 |
-|---|---|---|
-| `TAKES` | Patient → Drug | 복용 중인 약물 |
-| `TREATS` | Drug → Disease | 약물의 치료 질환 |
-| `CAUSES_SIDE_EFFECT` | Drug → SideEffect | 약물의 부작용 |
-| `PRESENTS_AS` | SideEffect → Symptom | 부작용의 증상 발현 |
-| `HAS_SYMPTOM` | Patient → Symptom | 환자의 현재 증상 |
-| `HAS_CONDITION` | Patient → Condition | 환자의 기저질환 |
-| `INTERACTS_WITH` | Drug → Drug | **병용금기(DUR) 및 약물 상호작용** *(4차 신규)* |
-| `HAS_SESSION` | Patient → ChatSession | 상담 세션 |
-| `HAS_MESSAGE` | ChatSession → Message | 세션 내 대화 |
-| `REFERENCED_BY` | Drug → Paper | 근거 문헌 |
+| 관계                   | From → To             | 설명                                                    |
+| ---------------------- | ---------------------- | ------------------------------------------------------- |
+| `TAKES`              | Patient → Drug        | 복용 중인 약물                                          |
+| `TREATS`             | Drug → Disease        | 약물의 치료 질환                                        |
+| `CAUSES_SIDE_EFFECT` | Drug → SideEffect     | 약물의 부작용                                           |
+| `PRESENTS_AS`        | SideEffect → Symptom  | 부작용의 증상 발현                                      |
+| `HAS_SYMPTOM`        | Patient → Symptom     | 환자의 현재 증상                                        |
+| `HAS_CONDITION`      | Patient → Condition   | 환자의 기저질환                                         |
+| `INTERACTS_WITH`     | Drug → Drug           | **병용금기(DUR) 및 약물 상호작용** *(4차 신규)* |
+| `HAS_SESSION`        | Patient → ChatSession | 상담 세션                                               |
+| `HAS_MESSAGE`        | ChatSession → Message | 세션 내 대화                                            |
+| `REFERENCED_BY`      | Drug → Paper          | 근거 문헌                                               |
 
 ---
 
@@ -206,26 +198,28 @@ Personal Graph와 Medical Graph를 하나의 Neo4j 데이터베이스에서 연�
 
 ### Qdrant 메타데이터 스키마
 
-| 필드명 (Key) | 데이터 타입 | 예시 값 | 설명 |
-| --- | --- | --- | --- |
-| `ingredient_code` | `String` | `"626402ATR"` | 의약품 식별 고유 코드 |
-| `section` | `String` | `"효능효과"`, `"용법용량"`, `"1. 경고"` | 약학 정보의 대분류/소분류 타이틀 |
+| 필드명 (Key)        | 데이터 타입 | 예시 값                                       | 설명                             |
+| ------------------- | ----------- | --------------------------------------------- | -------------------------------- |
+| `ingredient_code` | `String`  | `"626402ATR"`                               | 의약품 식별 고유 코드            |
+| `section`         | `String`  | `"효능효과"`, `"용법용량"`, `"1. 경고"` | 약학 정보의 대분류/소분류 타이틀 |
 
 ---
 
 ## 📁 데이터 수집 출처
 
 ### 1. 정신질환 약물 데이터
+
 약학정보원(https://health.kr/) 크롤링 수집 (Selenium + BeautifulSoup4 하이브리드 동적 크롤링)
 
-| 단계 | 내용 | 출처 |
-| --- | --- | --- |
-| ① | 건강보험심사평가원_ATC코드 매핑 목록 | [링크](https://www.data.go.kr/data/15118958/fileData.do) |
-| ② | 국민건강보험공단_주요 정신신경계 질환 환자 약 처방 현황 | [링크](https://www.data.go.kr/data/15143145/fileData.do) |
-| ③ | ① + ② 매핑 → 정신신경계 질환 관련 약물 274종 추출 | - |
-| ④ | 약학정보원 크롤링 → 265건 추출 | - |
+| 단계 | 내용                                                    | 출처                                                    |
+| ---- | ------------------------------------------------------- | ------------------------------------------------------- |
+| ①   | 건강보험심사평가원_ATC코드 매핑 목록                    | [링크](https://www.data.go.kr/data/15118958/fileData.do) |
+| ②   | 국민건강보험공단_주요 정신신경계 질환 환자 약 처방 현황 | [링크](https://www.data.go.kr/data/15143145/fileData.do) |
+| ③   | ① + ② 매핑 → 정신신경계 질환 관련 약물 274종 추출    | -                                                       |
+| ④   | 약학정보원 크롤링 → 265건 추출                         | -                                                       |
 
 ### 2. 병용금기(DUR) 데이터
+
 **건강보험심사평가원_의약품안전사용서비스(DUR) 의약품 목록** (20260601 기준)
 
 - **출처**: [공공데이터 포털](https://www.data.go.kr/data/15127983/fileData.do)
@@ -302,13 +296,14 @@ SKN31-4th-4Team/
 ├── README.md                            # 프로젝트 최상위 README
 └── requirements.txt
 ```
+
 ## 📁 산출물
 
-| 산출물 | 링크 |
-|---|---|
-| 요구사항 정의서 | _(링크 입력 예정)_ |
-| 화면 설계서 | _(링크 입력 예정)_ |
-| 시스템 구성도 | 상단 아키텍처 참고 |
+| 산출물                              | 링크                 |
+| ----------------------------------- | -------------------- |
+| 요구사항 정의서                     | _(링크 입력 예정)_ |
+| 화면 설계서                         | _(링크 입력 예정)_ |
+| 시스템 구성도                       | 상단 아키텍처 참고   |
 | 테스트 계획서 및 테스트 결과 보고서 | _(링크 입력 예정)_ |
 
 ---

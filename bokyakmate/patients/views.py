@@ -19,7 +19,7 @@ from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib import messages
 
-
+from Chatbot.db_connect import get_mysql_connection
 from .models import (
     Patient, ChatSession, Prescription, PrescriptionDetail,
     DosingLog,SymptomLog, Hospital
@@ -512,8 +512,9 @@ def chatbot_start(request, patient_id):
             user_message = data.get("user_input", "")
             
             if not current_state.values:
-                conn = sqlite3.connect("langgraph_checkpoint.db", check_same_thread=False)
-                input_data = build_initial_state(conn, str(patient_id))
+                if not current_state.values:
+                    mysql_conn = get_mysql_connection()
+                    input_data = build_initial_state(mysql_conn, str(patient_id))
                 
                 # ★ 딕셔너리를 버리고, 랭그래프 전용 HumanMessage 객체로 포장합니다!
                 input_data["messages"] = [HumanMessage(content=user_message)]
