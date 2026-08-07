@@ -98,14 +98,14 @@
         <a href="{% url 'patients:onboarding_hospital_select' %}" class="patient-entry-btn">인증하고 시작하기</a>
     </div>
 
-    {# 병원 회원 탭: 기존 아이디/비번 로그인 그대로 유지 #}
+    <!-- {# 병원 회원 탭: 기존 아이디/비번 로그인 그대로 유지 #}
     <form class="login-form" method="post" action="{% url 'accounts:login' %}" id="doctor-form" style="display:none;">
         {% csrf_token %}
         <input type="hidden" name="role" value="doctor">
         <input type="text" name="patient_id" placeholder="아이디" required>
         <input type="text" name="phone" placeholder="비밀번호" required>
         <button type="submit" class="login-submit">병원 회원으로 로그인</button>
-    </form>
+    </form> -->
 </div>
 
 <script>
